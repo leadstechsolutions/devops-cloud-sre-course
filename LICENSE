@@ -1,0 +1,34 @@
+LEADS Academy — Course License
+Copyright © 2026 LEADS Academy. All rights reserved.
+
+This repository and its contents (the "Materials") — including the curriculum, class
+notes, lab modules, source code, tests, and documentation — are the proprietary work
+of LEADS Academy and are provided for individual educational use only.
+
+YOU MAY:
+  • View, clone, and download the Materials for your own personal learning.
+  • Complete the lab exercises and build on them for your own private study and
+    portfolio.
+  • Quote short excerpts for non-commercial commentary or review, with attribution
+    to LEADS Academy.
+
+YOU MAY NOT, without the prior written permission of LEADS Academy:
+  • Use the Materials, in whole or in part, for any commercial purpose — including
+    teaching, training, bootcamps, workshops, or any paid course or program.
+  • Redistribute, republish, mirror, sublicense, sell, or host copies of the Materials.
+  • Create or offer a competing course, curriculum, or derivative work based on the
+    Materials.
+  • Remove or alter any copyright, authorship, or license notices.
+
+THIRD-PARTY NOTE: The Materials reference and interoperate with third-party tools and
+services (e.g., AWS, Kubernetes, Terraform, Docker), each governed by its own license
+and terms. This license covers only the LEADS Academy Materials themselves.
+
+THE MATERIALS ARE PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED,
+INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A
+PARTICULAR PURPOSE, AND NONINFRINGEMENT. IN NO EVENT SHALL LEADS ACADEMY BE LIABLE FOR
+ANY CLAIM, DAMAGES, OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT, OR
+OTHERWISE, ARISING FROM, OUT OF, OR IN CONNECTION WITH THE MATERIALS OR THE USE OR
+OTHER DEALINGS IN THE MATERIALS.
+
+For licensing inquiries, contact: admissions@leadsacademy.org

@@ -78,3 +78,9 @@ Then work week by week: read `class-01.md` / `class-02.md` for the week, then co
 > **Note on the security labs:** the secret-scanning exercises intentionally include the
 > well-known **AWS documentation example keys** (`AKIAIOSFODNN7EXAMPLE`) as test fixtures.
 > These are non-functional placeholders, not real credentials.
+
+## License
+
+© 2026 LEADS Academy. All rights reserved. Provided for **personal educational use only** — see
+[`LICENSE`](LICENSE). Not for commercial use, redistribution, or competing courses without written
+permission. Licensing inquiries: admissions@leadsacademy.org
