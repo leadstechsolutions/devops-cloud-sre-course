@@ -5,6 +5,8 @@ delivered as a single converged **25-week** track: **50 class packages** and **2
 modules** you clone, complete, and validate — real files you lint, plan, build, run, and test,
 not fenced code blocks inside slides.
 
+> 🚀 **New here?** Read **[`HOW-TO-USE.md`](HOW-TO-USE.md)** first — how to set up your machine and work the labs.
+>
 > 📚 **Full syllabus:** [`CURRICULUM.md`](CURRICULUM.md) — the complete week-by-week breakdown
 > (topics, hands-on lab, and outcome for all 25 weeks).
 
