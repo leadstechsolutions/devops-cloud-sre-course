@@ -1,0 +1,26 @@
+WS-D LIVE AWS VALIDATION — labs/terraform-aws-foundations/solution
+account 071146695791 · us-east-1 · Terraform v1.14.1 · NAT disabled (all free resources)
+================================================================
+[init] OK
+[plan] 
+[apply] Apply complete! Resources: 19 added, 0 changed, 0 destroyed.
+[outputs]
+   private_subnet_ids = [
+     "subnet-0475efceaa9650382",
+     "subnet-02e57151b6471afaf",
+   ]
+   public_subnet_ids = [
+     "subnet-0c335d144e50e4ee7",
+     "subnet-0e958bcfebf906809",
+   ]
+   vpc_cidr = "10.77.0.0/16"
+   vpc_id = "vpc-01b363f912eb8beee"
+[AWS API verify] VPC vpc-01b363f912eb8beee:
+   cidr+state: 10.77.0.0/16	available
+   subnets created: 4
+   IGW attached:    1
+   route tables:    3
+[destroy] Destroy complete! Resources: 19 destroyed.
+[confirm] remaining VPCs tagged Purpose=live-validation: '' (empty=clean)
+[cost] VPC/subnets/IGW/route-tables are $0; lifetime ~90s; NAT never created. Total: $0.
+validated: 2026-06-30T13:11Z by orchestrator

@@ -1,0 +1,30 @@
+# North-south entry point: route external HTTP for web.example.com to the
+# ClusterIP Service. Requires an Ingress controller (e.g. ingress-nginx)
+# installed in the cluster; the `ingressClassName` selects which one handles it.
+#
+# The NetworkPolicy in this base only allows ingress traffic to the pods from
+# the ingress-nginx namespace, so this Ingress is the intended front door.
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: web
+  labels:
+    app.kubernetes.io/name: web
+    app.kubernetes.io/component: app
+  annotations:
+    # Controller-specific knobs. These are ingress-nginx examples; harmless on
+    # a dry-run, and documented so learners know where tuning lives.
+    nginx.ingress.kubernetes.io/ssl-redirect: "false"
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: web.example.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: web
+                port:
+                  name: http

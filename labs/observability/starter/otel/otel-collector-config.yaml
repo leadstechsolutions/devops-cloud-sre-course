@@ -1,0 +1,90 @@
+# OpenTelemetry Collector configuration (contrib distribution).
+# Run with:      otelcol-contrib --config otel/otel-collector-config.yaml
+# Validate with: otelcol-contrib validate --config otel/otel-collector-config.yaml  (DEFERRED — see README)
+#
+# Pipeline shape:
+#   OTLP in (gRPC/HTTP)  ->  memory_limiter -> batch -> resource attrs  ->  exporters
+#                                                                            - traces  : OTLP/jaeger backend
+#                                                                            - metrics : Prometheus scrape (:8889)
+#                                                                            - logs/debug
+# Prometheus (prometheus.yml, job "otel-collector") scrapes :8889 to ingest the
+# collector-translated metrics, and :8888 for the collector's own internal telemetry.
+
+receivers:
+  # Accept OTLP from instrumented services over both gRPC (4317) and HTTP (4318).
+  otlp:
+    protocols:
+      grpc:
+        endpoint: 0.0.0.0:4317
+      http:
+        endpoint: 0.0.0.0:4318
+
+processors:
+  # memory_limiter MUST be first in every pipeline: it sheds load (refuses data) before
+  # the collector OOM-kills itself under a traffic spike.
+  memory_limiter:
+    check_interval: 1s
+    limit_percentage: 80
+    spike_limit_percentage: 25
+
+  # batch reduces the number of outgoing requests (and thus egress cost / backend load)
+  # by grouping spans/metrics/logs before export.
+  batch:
+    timeout: 5s
+    send_batch_size: 1024
+    send_batch_max_size: 2048
+
+  # Stamp every signal with deployment metadata so backends can filter by environment.
+  resource:
+    attributes:
+      - key: deployment.environment
+        value: production
+        action: upsert
+      - key: service.namespace
+        value: checkout
+        action: upsert
+
+exporters:
+  # Metrics -> a Prometheus scrape endpoint the Prometheus server pulls from.
+  prometheus:
+    endpoint: 0.0.0.0:8889
+    namespace: otel
+    resource_to_telemetry_conversion:
+      enabled: true   # turn OTel resource attrs into Prometheus labels
+
+  # Traces -> an OTLP-compatible tracing backend (Jaeger/Tempo). TLS is enabled in real
+  # deployments; insecure here keeps the lab self-contained.
+  otlp/traces:
+    endpoint: tempo.monitoring.svc:4317
+    tls:
+      insecure: true
+
+  # Logs/troubleshooting sink. `debug` replaces the old `logging` exporter.
+  debug:
+    verbosity: normal
+
+extensions:
+  # Liveness/readiness endpoint so Kubernetes can health-check the collector.
+  health_check:
+    endpoint: 0.0.0.0:13133
+
+service:
+  extensions: [health_check]
+  # The collector exposes its OWN metrics here; prometheus.yml scrapes :8888.
+  telemetry:
+    metrics:
+      level: detailed
+      address: 0.0.0.0:8888
+  pipelines:
+    traces:
+      receivers: [otlp]
+      processors: [memory_limiter, batch, resource]
+      exporters: [otlp/traces, debug]
+    metrics:
+      receivers: [otlp]
+      processors: [memory_limiter, batch, resource]
+      exporters: [prometheus]
+    logs:
+      receivers: [otlp]
+      processors: [memory_limiter, batch, resource]
+      exporters: [debug]

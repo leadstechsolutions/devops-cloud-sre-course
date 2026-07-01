@@ -1,0 +1,4 @@
+__pycache__/
+*.pyc
+.opa/
+/tmp/_secret_hits.out

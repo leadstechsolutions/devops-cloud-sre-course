@@ -1,0 +1,30 @@
+# Relaxed yamllint config for CI/CD pipeline YAML (GitHub Actions + GitLab CI).
+#
+# Why relaxed: GitHub Actions / GitLab CI files have idioms that the stock
+# yamllint "default" preset flags but that are 100% valid and conventional:
+#   * `on:` is a real top-level key in Actions, not a YAML boolean -> turn off
+#     the `truthy` check for keys (still check truthy VALUES like `yes`/`no`).
+#   * Workflow files never start with `---` -> disable document-start.
+#   * These teaching files carry long explanatory comments / pinned action refs
+#     -> raise line-length to a warning, not a hard error.
+# We KEEP the structural checks that catch real bugs: indentation, duplicate
+# keys, trailing spaces, bad key ordering of empty values, etc. So a genuinely
+# malformed pipeline still fails this gate.
+extends: default
+
+rules:
+  document-start: disable
+  truthy:
+    # Allow Actions' `on:` key; still flag truthy *values* (yes/no/on/off).
+    check-keys: false
+  line-length:
+    max: 120
+    level: warning
+  comments:
+    # Action pins and inline TODOs use a single leading space; that's fine.
+    min-spaces-from-content: 1
+  comments-indentation: disable
+  braces:
+    # `permissions: {}` (least-privilege placeholder) needs empty-flow braces.
+    min-spaces-inside: 0
+    max-spaces-inside: 0

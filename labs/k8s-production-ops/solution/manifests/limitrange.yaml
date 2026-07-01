@@ -1,0 +1,31 @@
+# LimitRange: per-container defaults and a hard per-container ceiling.
+#
+#  - default:        the LIMIT a container gets if it declares none.
+#  - defaultRequest: the REQUEST a container gets if it declares none.
+#  - max:            a container may not request/limit MORE than this; the API
+#                    rejects it with "maximum cpu usage per Container is 500m".
+#
+# With a ResourceQuota present, defaultRequest is what lets a pod that omits
+# requests still be admitted (the LimitRange injects the request, then the quota
+# is checked against it).
+apiVersion: v1
+kind: LimitRange
+metadata:
+  name: team-limits
+  labels:
+    app.kubernetes.io/part-of: k8s-production-ops
+spec:
+  limits:
+    - type: Container
+      default:
+        cpu: 200m
+        memory: 128Mi
+      defaultRequest:
+        cpu: 100m
+        memory: 64Mi
+      max:
+        cpu: 500m
+        memory: 256Mi
+      min:
+        cpu: 10m
+        memory: 16Mi

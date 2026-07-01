@@ -1,0 +1,35 @@
+# Keep the build context tiny and free of anything not needed inside the image.
+# This file lives at the module root because the documented build command uses
+# the module root as the build context:  docker build -f solution/Dockerfile .
+
+# VCS & editor noise
+.git
+.gitignore
+.github
+*.swp
+*.swo
+.vscode
+.idea
+
+# Docs / lab scaffolding — not part of the runtime image
+README.md
+docs/
+tests/
+broken/
+starter/
+validate.sh
+solution/compose.yaml
+solution/.env.example
+
+# Python build/runtime junk
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+.mypy_cache/
+.venv/
+venv/
+
+# OS cruft
+.DS_Store
+Thumbs.db

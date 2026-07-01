@@ -1,0 +1,107 @@
+# ============================ BROKEN FIXTURE ===============================
+# Week-12 troubleshooting lab #2: pods start, never become Ready, get no traffic.
+#
+# WHAT'S WRONG: the readinessProbe targets the WRONG port (9999). The app only
+# listens on 8000, so the probe's TCP/HTTP connect is refused every time. The
+# container runs fine (liveness, which here correctly targets 8000, passes — so
+# it is NOT restarted) but readiness never succeeds, so the pod stays 0/1 READY
+# and is kept OUT of the Service endpoints. The Service has no endpoints and
+# traffic to it fails.
+#
+# SYMPTOM (what the learner observes):
+#   kubectl -n web get pods
+#     web-badprobe-...  0/1  Running  0  90s     <- Running but NOT Ready
+#   kubectl -n web describe pod web-badprobe-...
+#     Warning  Unhealthy  ...  Readiness probe failed: Get
+#       "http://10.x.x.x:9999/healthz": connect: connection refused
+#   kubectl -n web get endpoints web-badprobe
+#     ENDPOINTS  <none>          <- no Ready pods, so the Service is empty
+#
+# CAUSE: readinessProbe.httpGet.port is 9999, but the container only listens on
+#   8000 (containerPort). A probe against a closed port is refused, so the pod
+#   never reports Ready.
+#
+# FIX: point the readiness probe at the real port. Either use the named port
+#   `http` (best — survives renumbering) or the literal 8000.
+#       readinessProbe.httpGet.port: 9999   ->   port: http   (== 8000)
+#
+# NOTE: structurally valid; applies cleanly. The defect only shows at RUNTIME.
+# ===========================================================================
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: web-badprobe
+  namespace: web
+  labels:
+    app.kubernetes.io/name: web-badprobe
+    lab: troubleshooting-badprobe
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: web-badprobe
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: web-badprobe
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        runAsGroup: 10001
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: web
+          image: docker-containers-demo:1.0.0
+          ports:
+            - name: http
+              containerPort: 8000
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 8000          # correct: liveness passes, so no restarts
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: 9999          # BUG: nothing listens on 9999 -> never Ready
+            periodSeconds: 5
+            failureThreshold: 3
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 250m
+              memory: 128Mi
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: tmp
+          emptyDir:
+            sizeLimit: 16Mi
+---
+# A matching Service so the learner can observe the empty-endpoints symptom.
+apiVersion: v1
+kind: Service
+metadata:
+  name: web-badprobe
+  namespace: web
+  labels:
+    app.kubernetes.io/name: web-badprobe
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: web-badprobe
+  ports:
+    - name: http
+      port: 80
+      targetPort: http

@@ -1,0 +1,22 @@
+# Burn-rate alerting rules for `sample-api` -- STARTER. Fill in the TODOs.
+#
+# Validate when done: promtool check rules prometheus/rules/alerting.rules.yml
+# Prove it fires:     promtool test rules tests/burn_rate_test.yml
+#
+# SLO: 99.9% availability over 30 days => error budget = 0.001.
+# Multi-window, multi-burn-rate (Google SRE Workbook):
+#   page   -> 1h AND 5m windows, burn rate 14.4
+#   ticket -> 6h AND 30m windows, burn rate 6
+#
+# Reference: solution/prometheus/rules/alerting.rules.yml
+
+groups:
+  - name: sample-api-slo-burn-rate
+    # TODO 1: add alert SampleApiErrorBudgetBurnFast --
+    #   expr: rate1h > 14.4*0.001 AND rate5m > 14.4*0.001
+    #   for: 2m, labels {severity: page, burn_rate: "14.4", ...}
+    # TODO 2: add alert SampleApiErrorBudgetBurnSlow --
+    #   expr: rate6h > 6*0.001 AND rate30m > 6*0.001
+    #   for: 15m, labels {severity: ticket, burn_rate: "6", ...}
+    # Until you add them, `promtool test rules` will FAIL (no alert fires).
+    rules: []

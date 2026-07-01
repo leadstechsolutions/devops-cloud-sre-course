@@ -1,0 +1,91 @@
+# STARTER — intentionally incomplete. Fill the TODO blocks so this Deployment
+# matches the acceptance criteria in the README, then check against
+# solution/base/deployment.yaml.
+#
+# The rest of the base (namespace, service, configmap, secret, hpa, ingress,
+# networkpolicy, kustomization) is already done in solution/base/ — for the lab
+# you only complete this Deployment. Copy the finished file over the base copy,
+# or just compare.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: web
+  labels:
+    app.kubernetes.io/name: web
+    app.kubernetes.io/component: app
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: web
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 1
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: web
+        app.kubernetes.io/component: app
+    spec:
+      # TODO(student): add the POD-level securityContext that the `restricted`
+      # Pod Security profile requires. It must:
+      #   - set runAsNonRoot: true
+      #   - run as the image's non-root identity (UID/GID 10001), with fsGroup
+      #   - set seccompProfile.type: RuntimeDefault
+      # securityContext:
+      #   ...
+      containers:
+        - name: web
+          image: docker-containers-demo:1.0.0
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 8000
+              protocol: TCP
+          envFrom:
+            - configMapRef:
+                name: web-config
+            - secretRef:
+                name: web-secret
+          # TODO(student): add a livenessProbe AND a readinessProbe. Both should
+          # httpGet /healthz on the `http` port. Give readiness a short
+          # initialDelay; liveness a slightly longer one. (Bonus: a startupProbe
+          # so a slow boot doesn't trip liveness.) Getting the probe PORT wrong
+          # is the Week-12 bug in broken/deployment-badprobe.yaml — don't.
+          # livenessProbe:
+          #   ...
+          # readinessProbe:
+          #   ...
+
+          # TODO(student): add resources.requests AND resources.limits for cpu
+          # and memory. Requests are what the scheduler reserves; limits are the
+          # ceiling. Memory limit too low -> OOMKilled (see
+          # broken/deployment-oomkilled.yaml). Suggested: requests 50m/64Mi,
+          # limits 250m/128Mi.
+          # resources:
+          #   requests:
+          #     ...
+          #   limits:
+          #     ...
+
+          # TODO(student): add the CONTAINER-level securityContext:
+          #   - allowPrivilegeEscalation: false
+          #   - readOnlyRootFilesystem: true
+          #   - privileged: false
+          #   - capabilities.drop: [ALL]
+          # securityContext:
+          #   ...
+
+          # Because readOnlyRootFilesystem is true, the container can't write to
+          # / — so it needs a writable /tmp. This mount is already wired to the
+          # emptyDir volume below; your securityContext above is what makes it
+          # necessary.
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: tmp
+          emptyDir:
+            sizeLimit: 16Mi

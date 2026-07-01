@@ -1,0 +1,39 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "service.fullname" . }}
+  labels:
+    {{- include "service.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "service.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "service.selectorLabels" . | nindent 8 }}
+    spec:
+      serviceAccountName: {{ include "service.serviceAccountName" . }}
+      # TODO: add pod-level securityContext from .Values.podSecurityContext
+      #       (runAsNonRoot, runAsUser, seccompProfile).
+      containers:
+        - name: {{ .Chart.Name }}
+          image: {{ include "service.image" . | quote }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          # TODO: add container securityContext from .Values.securityContext
+          #       (allowPrivilegeEscalation:false, readOnlyRootFilesystem:true,
+          #       capabilities.drop:[ALL]).
+          ports:
+            - name: http
+              containerPort: {{ .Values.containerPort }}
+              protocol: TCP
+          env:
+            - name: PORT
+              value: {{ .Values.containerPort | quote }}
+            - name: SERVICE_NAME
+              value: {{ include "service.name" . | quote }}
+          # TODO: add livenessProbe and readinessProbe from .Values.
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+          # TODO: mount a writable emptyDir at /tmp (readOnlyRootFilesystem needs it).

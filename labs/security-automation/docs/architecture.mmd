@@ -1,0 +1,28 @@
+flowchart TD
+    subgraph dev["Developer workstation / pre-commit"]
+        SS["secret_scan.sh\n(grep key patterns)"]
+    end
+
+    subgraph ci["CI pipeline (Week 19 wiring)"]
+        IAM["iam_policy_audit.py\n(flag wildcard / NotAction)"]
+        S3["s3_public_check.sh\n(public Principal / ACL)"]
+        OPA["opa test\ns3_deny_public.rego"]
+    end
+
+    subgraph inputs["Policy artifacts under review"]
+        GP["policies/iam/good-policy.json"]
+        BP["policies/iam/bad-policy.json"]
+        BPOL["bucket-policy.json / acl.json"]
+        SCP["policies/scp/deny-leave-org.json"]
+    end
+
+    GP --> IAM
+    BP --> IAM
+    BPOL --> S3
+    BPOL --> OPA
+    SCP -. "applied at org root\n(guardrail, not scanned)" .-> ci
+
+    SS -->|exit 1 blocks commit| dev
+    IAM -->|exit 1 fails build| ci
+    S3 -->|exit 1 fails build| ci
+    OPA -->|deny set non-empty fails| ci

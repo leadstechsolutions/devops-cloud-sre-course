@@ -1,0 +1,94 @@
+# BROKEN FIXTURE: a Deployment with NO CPU request, paired with a CPU-percentage
+# HPA. This reproduces the second most common "HPA doesn't scale" failure (after
+# a missing metrics-server): a Utilization target is a PERCENTAGE OF THE REQUEST,
+# so with no request there is nothing to take a percentage of.
+#
+# Symptom (with metrics-server installed and working):
+#   $ kubectl -n <ns> get hpa cpu-burner-broken
+#   NAME                REFERENCE                      TARGETS              ...
+#   cpu-burner-broken   Deployment/cpu-burner-broken   <unknown>/50%        ...
+#   $ kubectl -n <ns> describe hpa cpu-burner-broken
+#   ... FailedGetResourceMetric ... did not specify CPU request ...
+#
+# Fix: add `resources.requests.cpu` to the container (see solution/k8s/deployment.yaml).
+# Apply this fixture into a throwaway namespace, observe <unknown>, then delete it.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: cpu-burner-broken
+  labels:
+    app.kubernetes.io/name: cpu-burner-broken
+    app.kubernetes.io/component: app
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: cpu-burner-broken
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: cpu-burner-broken
+        app.kubernetes.io/component: app
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        runAsGroup: 10001
+        fsGroup: 10001
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: cpu-burner
+          image: cpu-burner:1.0.0
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 8000
+              protocol: TCP
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            initialDelaySeconds: 2
+            periodSeconds: 5
+          # BUG: no `resources.requests.cpu`. A CPU-Utilization HPA cannot compute
+          # a percentage with no denominator, so TARGETS stays <unknown> forever.
+          resources:
+            limits:
+              cpu: 500m
+              memory: 128Mi
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            privileged: false
+            capabilities:
+              drop:
+                - ALL
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: tmp
+          emptyDir:
+            sizeLimit: 16Mi
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: cpu-burner-broken
+  labels:
+    app.kubernetes.io/name: cpu-burner-broken
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: cpu-burner-broken
+  minReplicas: 1
+  maxReplicas: 5
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 50

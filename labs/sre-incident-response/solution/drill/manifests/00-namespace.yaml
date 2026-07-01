@@ -1,0 +1,10 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: lab-incident
+  labels:
+    # A dedicated, disposable namespace for the injected-incident drill. Every
+    # drill run creates it fresh and run-drill.sh deletes it on the way out, so
+    # the drill never touches other namespaces on the shared cluster.
+    app.kubernetes.io/part-of: sre-incident-response
+    lab.sre/purpose: injected-incident-drill

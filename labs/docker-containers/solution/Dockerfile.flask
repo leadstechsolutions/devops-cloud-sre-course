@@ -1,0 +1,72 @@
+# syntax=docker/dockerfile:1
+#
+# W10 LECTURE VARIANT (Week 10 Class 02): the Flask app the lecture builds.
+#
+# Unlike the top-level solution/Dockerfile (stdlib app, builds with NO package
+# index access), this image installs Flask + gunicorn from PyPI, so it needs
+# network access to a package index at BUILD time. That is intentional: a real
+# third-party dependency tree is precisely what the lecture's image CVE scan
+# (grype/Trivy) and SBOM (syft) steps operate on.
+#
+# Build context is the MODULE ROOT (so .dockerignore applies and paths resolve):
+#     docker build -f solution/Dockerfile.flask -t dc-flask:latest .
+#
+# Demonstrated: multi-stage (deps installed into an isolated prefix, only that
+# copied forward), a current slim base, a fixed-UID non-root user, a stdlib
+# HEALTHCHECK (no curl/wget in the image), EXPOSE, and gunicorn as PID 1.
+
+# ---------------------------------------------------------------------------
+# Stage 1: build — install dependencies into an isolated prefix.
+# ---------------------------------------------------------------------------
+FROM python:3.12-slim AS build
+
+WORKDIR /build
+
+# Copy only requirements first so the (slow) install layer is cached and is
+# NOT invalidated by application code changes.
+COPY solution/app-flask/requirements.txt .
+
+# --prefix=/install isolates everything pip writes so the runtime stage can
+# COPY exactly the installed packages and nothing else (no pip, no caches).
+RUN pip install --no-cache-dir --prefix=/install -r requirements.txt
+
+# ---------------------------------------------------------------------------
+# Stage 2: runtime — slim, non-root, no build tooling.
+# ---------------------------------------------------------------------------
+FROM python:3.12-slim AS runtime
+
+LABEL org.opencontainers.image.title="docker-containers-flask" \
+      org.opencontainers.image.description="W10 lecture Flask app: GET / and GET /health, served by gunicorn" \
+      org.opencontainers.image.source="https://example.com/devops-cloud-sre/labs/docker-containers" \
+      org.opencontainers.image.licenses="MIT"
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PIP_NO_CACHE_DIR=1 \
+    PORT=5000
+
+# Unprivileged, fixed high UID so it maps predictably under Kubernetes
+# runAsUser/runAsNonRoot policies.
+RUN groupadd --gid 10001 appuser \
+ && useradd  --uid 10001 --gid 10001 --no-create-home --shell /usr/sbin/nologin appuser
+
+WORKDIR /app
+
+# Bring in ONLY the installed packages/console scripts from the build stage.
+COPY --from=build /install /usr/local
+
+# Application code copied last so changing it does not bust the dependency layer.
+COPY --chown=appuser:appuser solution/app-flask/app.py solution/app-flask/healthcheck.py /app/
+
+USER 10001:10001
+
+EXPOSE 5000
+
+# Stdlib probe (no curl/wget in the image, by design).
+HEALTHCHECK --interval=15s --timeout=5s --start-period=5s --retries=3 \
+    CMD ["python", "/app/healthcheck.py"]
+
+# gunicorn (a production WSGI server), exec form so it is PID 1 and receives
+# SIGTERM for a clean `docker stop`. One worker is plenty for the lab; bind to
+# the configured port.
+ENTRYPOINT ["gunicorn", "--bind", "0.0.0.0:5000", "--workers", "2", "--access-logfile", "-", "app:app"]

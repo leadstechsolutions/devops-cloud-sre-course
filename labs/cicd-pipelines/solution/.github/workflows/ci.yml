@@ -1,0 +1,98 @@
+name: ci
+
+# PRIMARY Week 9 pipeline (matches the Class 1 lecture exactly):
+#   lint (ruff) -> test (pytest) -> build a SHA-tagged tarball artifact
+#   + a SEPARATE security gate: gitleaks (secret scan) + pip-audit (SCA).
+# Both security tools EXIT NON-ZERO on a finding, which fails the job and
+# therefore the required status check -> the build is blocked.
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+# Least privilege: read-only repo access by default. gitleaks-action reads
+# GITHUB_TOKEN (provided automatically) to annotate the run; no write scope.
+permissions:
+  contents: read
+
+# Cancel superseded runs on the same ref so a force-push doesn't burn minutes.
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # ----------------------------------------------------------------------
+  # lint -> test -> build a real artifact, across two Python versions.
+  # ----------------------------------------------------------------------
+  lint-test-build:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.11", "3.12"]
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -r requirements-dev.txt
+
+      - name: Lint (ruff)
+        run: ruff check .
+
+      - name: Unit tests (pytest)
+        run: pytest -q
+
+      - name: Build artifact
+        run: |
+          mkdir -p dist
+          # A real, reproducible build artifact: a versioned source tarball
+          # tagged with the commit SHA for traceability (matters in Class 2).
+          tar -czf "dist/app-${GITHUB_SHA::7}.tar.gz" app requirements.txt
+          ls -la dist
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-build-${{ matrix.python-version }}
+          path: dist/*.tar.gz
+          retention-days: 7
+
+  # ----------------------------------------------------------------------
+  # security GATE: secret scan + dependency (SCA) scan. Separate job so a
+  # code failure and a security finding are distinct in the run summary.
+  # Both steps fail the build on a finding (no `|| true`, no continue-on-error).
+  # ----------------------------------------------------------------------
+  security:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0   # gitleaks scans the FULL history, not just HEAD
+
+      # Secret scan. gitleaks-action exits non-zero when it finds a committed
+      # credential, which FAILS this job and blocks the merge. THIS IS THE GATE.
+      - name: Secret scan (gitleaks)
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      # SCA. pip-audit exits non-zero when a pinned dependency has a known CVE,
+      # which FAILS this job. Scans requirements.txt (the runtime surface).
+      - name: Dependency vulnerability scan (pip-audit / SCA)
+        run: |
+          pip install pip-audit==2.7.3
+          pip-audit -r requirements.txt

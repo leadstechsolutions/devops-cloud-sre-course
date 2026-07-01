@@ -1,0 +1,162 @@
+# LIVE-OBS-EVIDENCE -- observability-stack run-demo.sh
+# Captured: 2026-06-30T14:39:08Z
+# Cluster context: kind-course   Namespace: lab-obs   Image: sample-api:1.0.0
+# Prometheus: prom/prometheus:v2.55.0 (single Deployment, pod SD)
+
+Image: "sample-api:1.0.0" with ID "sha256:d05ba5e547f695c97636da7eedb9e783769414725d9e975a1ffe75494e3d3693" not yet present on node "course-control-plane", loading...
+namespace/lab-obs created
+deployment.apps/sample-api created
+service/sample-api created
+serviceaccount/prometheus created
+role.rbac.authorization.k8s.io/prometheus created
+rolebinding.rbac.authorization.k8s.io/prometheus created
+configmap/prometheus-config created
+deployment.apps/prometheus created
+service/prometheus created
+Waiting for deployment "sample-api" rollout to finish: 0 of 2 updated replicas are available...
+Waiting for deployment "sample-api" rollout to finish: 1 of 2 updated replicas are available...
+deployment "sample-api" successfully rolled out
+Waiting for deployment "prometheus" rollout to finish: 0 of 1 updated replicas are available...
+deployment "prometheus" successfully rolled out
+NAME                          READY   STATUS    RESTARTS   AGE   IP             NODE                   NOMINATED NODE   READINESS GATES
+prometheus-6ccf587ccc-ppsds   1/1     Running   0          10s   10.244.0.153   course-control-plane   <none>           <none>
+sample-api-b79d588c-564bh     1/1     Running   0          10s   10.244.0.151   course-control-plane   <none>           <none>
+sample-api-b79d588c-7fcf9     1/1     Running   0          10s   10.244.0.152   course-control-plane   <none>           <none>
+
+## load generation (mixed good/slow/error traffic, paced over 150s)
+sent 1500 requests; status breakdown: {200: 1350, 500: 150}
+observed error fraction: 0.100
+
+## scrape targets up (sample-api pods)
+PromQL: up{job="sample-api"}
+{
+    "status": "success",
+    "data": {
+        "resultType": "vector",
+        "result": [
+            {
+                "metric": {
+                    "__name__": "up",
+                    "instance": "10.244.0.152:8000",
+                    "job": "sample-api",
+                    "node": "course-control-plane",
+                    "pod": "sample-api-b79d588c-7fcf9"
+                },
+                "value": [
+                    1782830516.478,
+                    "1"
+                ]
+            },
+            {
+                "metric": {
+                    "__name__": "up",
+                    "instance": "10.244.0.151:8000",
+                    "job": "sample-api",
+                    "node": "course-control-plane",
+                    "pod": "sample-api-b79d588c-564bh"
+                },
+                "value": [
+                    1782830516.478,
+                    "1"
+                ]
+            }
+        ]
+    }
+}
+
+## R: request rate (req/s)
+PromQL: job:http_requests:rate5m{job="sample-api"}
+{
+    "status": "success",
+    "data": {
+        "resultType": "vector",
+        "result": [
+            {
+                "metric": {
+                    "__name__": "job:http_requests:rate5m",
+                    "job": "sample-api"
+                },
+                "value": [
+                    1782830516.566,
+                    "4.303855082748308"
+                ]
+            }
+        ]
+    }
+}
+
+## E: error ratio (0..1)
+PromQL: job:http_requests_error_ratio:rate5m{job="sample-api"}
+{
+    "status": "success",
+    "data": {
+        "resultType": "vector",
+        "result": [
+            {
+                "metric": {
+                    "__name__": "job:http_requests_error_ratio:rate5m",
+                    "job": "sample-api"
+                },
+                "value": [
+                    1782830516.672,
+                    "0.09929873840924268"
+                ]
+            }
+        ]
+    }
+}
+
+## D: p99 latency (s)
+PromQL: job:http_request_duration_seconds:p99{job="sample-api"}
+{
+    "status": "success",
+    "data": {
+        "resultType": "vector",
+        "result": [
+            {
+                "metric": {
+                    "__name__": "job:http_request_duration_seconds:p99",
+                    "job": "sample-api"
+                },
+                "value": [
+                    1782830516.763,
+                    "0.00495"
+                ]
+            }
+        ]
+    }
+}
+
+## raw counter sample
+PromQL: sum by (status) (http_requests_total{job="sample-api"})
+{
+    "status": "success",
+    "data": {
+        "resultType": "vector",
+        "result": [
+            {
+                "metric": {
+                    "status": "200"
+                },
+                "value": [
+                    1782830516.868,
+                    "1269"
+                ]
+            },
+            {
+                "metric": {
+                    "status": "500"
+                },
+                "value": [
+                    1782830516.868,
+                    "140"
+                ]
+            }
+        ]
+    }
+}
+
+## loaded alerting rules (Prometheus /api/v1/rules, alert names only)
+  alert: SampleApiHighLatencyP99
+  alert: SampleApiErrorBudgetBurnFast
+  alert: SampleApiErrorBudgetBurnSlow

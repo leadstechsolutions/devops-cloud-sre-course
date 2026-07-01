@@ -1,0 +1,100 @@
+# Burn-rate alerting rules for the `sample-api` availability SLO.
+#
+# Validate: promtool check rules prometheus/rules/alerting.rules.yml
+# Test:     promtool test rules tests/burn_rate_test.yml   (run by validate.sh)
+#
+# SLO: 99.9% of requests succeed over 30 days  =>  error budget = 0.1% = 0.001.
+#
+# A "burn rate" is how fast you spend the error budget relative to the rate that
+# would exhaust it exactly at the window's end. Burn rate 1 = on track to use
+# 100% of the 30-day budget in 30 days. Burn rate 14.4 = on track in ~2 days.
+#
+# Multi-window, multi-burn-rate (Google SRE Workbook, "Alerting on SLOs"). The
+# thresholds below are the Workbook's recommended table for a 30-day window:
+#
+#   Severity  Long window  Short window  Burn rate  Budget burned when it fires
+#   --------  -----------  ------------  ---------  ---------------------------
+#   page      1h           5m            14.4       2%   (fast burn -- wake on-call)
+#   ticket    6h           30m           6          5%   (slow burn -- fix this week)
+#
+# Why TWO windows per alert: the LONG window gives significance (you have really
+# been burning budget, not a 1-minute blip); the SHORT window gives fast reset
+# (when the incident ends the alert clears quickly instead of staying lit for the
+# whole long window). BOTH must exceed the threshold -- that is the `and`.
+#
+# The error_ratio:rateXX series are precomputed in recording.rules.yml so the
+# alert and the dashboards share one definition of "error".
+
+groups:
+  - name: sample-api-slo-burn-rate
+    rules:
+      # ============================ FAST BURN (page) ============================
+      # Fires when, over the last 1h AND the last 5m, the error ratio exceeds
+      # 14.4 * 0.001 = 0.0144. ~2% of the 30-day budget is gone by the time this
+      # fires; at 14.4x it would be fully exhausted in ~2 days. Pages on-call.
+      - alert: SampleApiErrorBudgetBurnFast
+        expr: |
+          (
+            job:http_requests_error_ratio:rate1h{job="sample-api"} > (14.4 * 0.001)
+            and
+            job:http_requests_error_ratio:rate5m{job="sample-api"} > (14.4 * 0.001)
+          )
+        for: 2m
+        labels:
+          severity: page
+          service: sample-api
+          slo: availability
+          burn_rate: "14.4"
+        annotations:
+          summary: "sample-api is burning its error budget FAST (14.4x)"
+          description: >-
+            Over the last 1h and 5m the sample-api 5xx error ratio is
+            {{ $value | humanizePercentage }}, above the 1.44% fast-burn
+            threshold (14.4x the 99.9% SLO budget). At this rate the 30-day
+            error budget is consumed in ~2 days. Page on-call.
+          runbook_url: "https://runbooks.example.com/sample-api/error-budget-burn"
+          dashboard_url: "https://grafana.example.com/d/sample-api-red"
+
+      # ============================ SLOW BURN (ticket) =========================
+      # Fires when, over the last 6h AND the last 30m, the error ratio exceeds
+      # 6 * 0.001 = 0.006. ~5% of the budget is gone; at 6x it exhausts in ~5
+      # days. This is a ticket, not a page -- fix it within the week.
+      - alert: SampleApiErrorBudgetBurnSlow
+        expr: |
+          (
+            job:http_requests_error_ratio:rate6h{job="sample-api"} > (6 * 0.001)
+            and
+            job:http_requests_error_ratio:rate30m{job="sample-api"} > (6 * 0.001)
+          )
+        for: 15m
+        labels:
+          severity: ticket
+          service: sample-api
+          slo: availability
+          burn_rate: "6"
+        annotations:
+          summary: "sample-api is burning its error budget slowly (6x)"
+          description: >-
+            Over the last 6h and 30m the sample-api 5xx error ratio is
+            {{ $value | humanizePercentage }}, above the 0.6% slow-burn
+            threshold (6x the 99.9% SLO budget). At this rate the 30-day error
+            budget is consumed in ~5 days. Open a ticket; fix within the week.
+          runbook_url: "https://runbooks.example.com/sample-api/error-budget-burn"
+          dashboard_url: "https://grafana.example.com/d/sample-api-red"
+
+  - name: sample-api-latency
+    rules:
+      # A plain latency SLO alert so learners see a non-burn-rate alert too.
+      - alert: SampleApiHighLatencyP99
+        expr: job:http_request_duration_seconds:p99{job="sample-api"} > 1
+        for: 10m
+        labels:
+          severity: ticket
+          service: sample-api
+          slo: latency
+        annotations:
+          summary: "sample-api p99 latency above 1s"
+          description: >-
+            p99 request latency for sample-api is {{ $value | humanizeDuration }}
+            (threshold 1s) over the last 10 minutes.
+          runbook_url: "https://runbooks.example.com/sample-api/high-latency"

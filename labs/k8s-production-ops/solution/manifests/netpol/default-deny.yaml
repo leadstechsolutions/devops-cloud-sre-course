@@ -1,0 +1,14 @@
+# Default-deny-ingress for the whole namespace: an empty podSelector selects
+# EVERY pod, and listing Ingress in policyTypes with no ingress rules means "allow
+# nothing in". Once Calico enforces this, client -> server curl times out.
+#
+# This is the cornerstone of a zero-trust network posture: deny by default, then
+# add explicit allow policies (allow-client-to-server.yaml) for the flows you want.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: default-deny-ingress
+spec:
+  podSelector: {}
+  policyTypes:
+    - Ingress

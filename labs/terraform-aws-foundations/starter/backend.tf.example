@@ -1,0 +1,21 @@
+# Remote state backend (S3 with native state locking).
+#
+# This file is COMMENTED and named *.example on purpose: `terraform init -backend=false`
+# (used by the lab gates) must work with no backend at all. To use remote state:
+#   1. Create the bucket once (see README "Remote state" section).
+#   2. Copy this file to backend.tf and uncomment the block.
+#   3. Run: terraform init   (Terraform will prompt to migrate local state).
+#
+# Native S3 state locking (`use_lockfile`) requires Terraform >= 1.10 (or OpenTofu >= 1.10).
+# It uses an S3 conditional-write lock object, so a SEPARATE DynamoDB lock table is NO LONGER
+# needed. The old `dynamodb_table` lock argument is legacy/deprecated — prefer use_lockfile.
+#
+# terraform {
+#   backend "s3" {
+#     bucket       = "tf-aws-foundations-tfstate-CHANGE-ME"
+#     key          = "foundations/terraform.tfstate"
+#     region       = "us-east-1"
+#     encrypt      = true
+#     use_lockfile = true   # native S3 lock — replaces the legacy dynamodb_table
+#   }
+# }

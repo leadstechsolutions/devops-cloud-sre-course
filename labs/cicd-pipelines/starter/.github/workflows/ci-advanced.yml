@@ -1,0 +1,94 @@
+name: ci-advanced
+
+# ADVANCED VARIANT (Week 19 depth) — optional stretch, NOT the Week 9 task.
+# The Week 9 task is in ci.yml (gitleaks + pip-audit gate). This variant builds
+# the container IMAGE and scans it with Trivy. Your stretch task: add the `scan`
+# job (the supply-chain gate). See the TODO at the bottom.
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+# Least privilege at the top: by default jobs get read-only access to the repo.
+permissions:
+  contents: read
+
+# Cancel superseded runs on the same ref so a force-push doesn't burn minutes.
+concurrency:
+  group: ci-advanced-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    working-directory: app
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Lint Python (ruff)
+        uses: astral-sh/ruff-action@v3
+        with:
+          src: app
+      - name: Lint Dockerfile (hadolint)
+        uses: hadolint/hadolint-action@v3.1.0
+        with:
+          dockerfile: app/Dockerfile
+
+  test:
+    runs-on: ubuntu-latest
+    needs: [lint]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install deps
+        run: pip install --no-cache-dir -r ../requirements-dev.txt
+      - name: Run tests
+        working-directory: ${{ github.workspace }}
+        run: python -m pytest -q
+
+  build:
+    runs-on: ubuntu-latest
+    # TODO(student): this job must run only after the tests pass. Wire the
+    # dependency graph by ADDING a `needs:` line here (a job name, as a list),
+    # e.g. `needs: [test]`. Until you add it, `build` races the other jobs.
+    # (An empty `needs: []` is invalid YAML for Actions — add the real upstream.)
+    outputs:
+      image: ${{ steps.meta.outputs.image }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - name: Set image ref
+        id: meta
+        run: echo "image=ci-local/app:${GITHUB_SHA}" >> "$GITHUB_OUTPUT"
+      - name: Build image
+        uses: docker/build-push-action@v6
+        with:
+          context: app
+          file: app/Dockerfile
+          push: false
+          load: true
+          tags: ${{ steps.meta.outputs.image }}
+
+  # TODO(student): Add the `scan` job below. This is the supply-chain GATE.
+  # Requirements (see README "How the scan gate blocks a merge"):
+  #   1. needs: [build]               -> only scan what the build job produced.
+  #   2. permissions:                  -> least privilege; this job additionally
+  #        contents: read                 needs `security-events: write` to upload
+  #        security-events: write         the SARIF report, nothing more.
+  #   3. Rebuild/load the image, then run aquasecurity/trivy-action@0.28.0 with:
+  #        severity: HIGH,CRITICAL
+  #        ignore-unfixed: true
+  #        exit-code: "1"             -> THIS is what fails the job (a HARD gate).
+  #      Do NOT add `continue-on-error: true` or `|| true` — that turns the gate
+  #      into a soft warning and a vulnerable image would merge.
+  #   4. Upload the SARIF report with github/codeql-action/upload-sarif@v3 using
+  #      `if: always()` so reviewers see CVEs even when the gate fails.
+  # When done, `python3 tests/check_job_graph.py <your ci-advanced.yml>` is green.

@@ -1,0 +1,29 @@
+flowchart TD
+    subgraph GP["Golden Path (solution/)"]
+        T["template/<br/>parametrized skeleton<br/>__SERVICE_NAME__"]
+        S["scaffold.sh<br/>generator (sed substitution)"]
+    end
+
+    DEV["Developer:<br/>./scaffold.sh orders"] --> S
+    T --> S
+    S --> OUT["Generated service dir<br/>(example-service/)"]
+
+    subgraph OUT2["Generated service contents"]
+        APP["app/ (stdlib HTTP)<br/>+ tests/"]
+        DOCK["Dockerfile<br/>multi-stage, non-root"]
+        CHART["chart/ (Helm)<br/>probes + limits + securityContext"]
+        K8S["k8s/ (plain manifests)"]
+        CI[".github/workflows/ci.yml<br/>lint -> test -> build+scan"]
+        RM["README.md"]
+    end
+
+    OUT --> APP
+    OUT --> DOCK
+    OUT --> CHART
+    OUT --> K8S
+    OUT --> CI
+    OUT --> RM
+
+    CI --> REG["Container registry"]
+    CHART --> K8SCLUSTER["Kubernetes cluster"]
+    REG --> K8SCLUSTER

@@ -1,0 +1,77 @@
+# RED-method PromQL cookbook for the `checkout` service.
+# ----------------------------------------------------------------------------
+# RED = Rate, Errors, Duration — the three signals you want for any request-driven
+# service (Tom Wilkie). Paste these into Grafana's Explore or the Prometheus expression
+# browser. The recording rules in ../prometheus/rules/recording.rules.yml precompute the
+# expensive ones; prefer the recorded series in dashboards/alerts. These raw forms are
+# here so you understand what the recorded series mean.
+#
+# Assumed instrumentation (exposed at /metrics by the app):
+#   http_requests_total{job,method,route,status_code}                    # counter
+#   http_request_duration_seconds_bucket{job,route,le}                   # histogram
+# ----------------------------------------------------------------------------
+
+# === R — Request rate (requests/second), whole service, 5m window ===========
+# rate() needs a counter and a range; sum() collapses the per-pod/per-route series.
+sum(rate(http_requests_total{job="checkout"}[5m]))
+
+# Request rate broken down by route (for a top-N table panel):
+sum by (route) (rate(http_requests_total{job="checkout"}[5m]))
+
+# Recorded equivalents (cheaper — use these in panels):
+#   job:http_requests:rate5m
+#   job_route:http_requests:rate5m
+
+
+# === E — Errors ==============================================================
+# 5xx requests/second (the error RATE, in req/s):
+sum(rate(http_requests_total{job="checkout", status_code=~"5.."}[5m]))
+
+# Error RATIO (errors / total), 0..1 — this is the availability SLI. Multiply by 100
+# for a percentage in the panel. Note: yields no samples when there is zero traffic
+# (0/0), which dashboards render as a gap — that is intentional, not a bug.
+  sum(rate(http_requests_total{job="checkout", status_code=~"5.."}[5m]))
+/
+  sum(rate(http_requests_total{job="checkout"}[5m]))
+
+# Recorded equivalent (used by the burn-rate alerts):
+#   job:http_requests_error_ratio:rate5m
+
+
+# === D — Duration (latency) ==================================================
+# p99 latency (seconds) from the classic histogram. histogram_quantile operates on the
+# per-bucket RATE summed by `le`; forgetting `by (le)` is the #1 mistake here.
+histogram_quantile(
+  0.99,
+  sum by (le) (rate(http_request_duration_seconds_bucket{job="checkout"}[5m]))
+)
+
+# p50 / p95 for the same series (swap the quantile):
+histogram_quantile(0.50, sum by (le) (rate(http_request_duration_seconds_bucket{job="checkout"}[5m])))
+histogram_quantile(0.95, sum by (le) (rate(http_request_duration_seconds_bucket{job="checkout"}[5m])))
+
+# p99 latency PER ROUTE (keep `route` alongside `le`):
+histogram_quantile(
+  0.99,
+  sum by (route, le) (rate(http_request_duration_seconds_bucket{job="checkout"}[5m]))
+)
+
+# Recorded equivalents:
+#   job:http_request_duration_seconds:p99
+#   job_route:http_request_duration_seconds:p99
+
+
+# === Error-budget burn rate (the SLO connective tissue) =====================
+# Burn rate = current error ratio / error budget. For a 99.9% SLO the budget is 0.001,
+# so burn_rate = error_ratio / 0.001. A value of 14.4 means "burning 14.4x too fast".
+# This is exactly what alerting.rules.yml thresholds against at multiple windows.
+  job:http_requests_error_ratio:rate1h{job="checkout"}
+/
+  0.001
+
+# Remaining 30-day error budget as a fraction (1.0 = full, 0 = exhausted):
+1 - (
+    sum(increase(http_requests_total{job="checkout", status_code=~"5.."}[30d]))
+  /
+    sum(increase(http_requests_total{job="checkout"}[30d]))
+  ) / 0.001

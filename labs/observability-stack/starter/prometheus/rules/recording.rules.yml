@@ -1,0 +1,40 @@
+# RED recording rules for `sample-api` -- STARTER. Fill in the TODOs.
+#
+# Validate when done: promtool check rules prometheus/rules/recording.rules.yml
+#
+# You are given R (rate) and the 5m error ratio. Add the longer error-ratio
+# windows the burn-rate alert needs, and the duration (p99/p50) rules.
+#
+# Reference: solution/prometheus/rules/recording.rules.yml
+
+groups:
+  - name: sample-api-red-rate
+    interval: 15s
+    rules:
+      - record: job:http_requests:rate5m
+        expr: sum by (job) (rate(http_requests_total{job="sample-api"}[5m]))
+
+      - record: job:http_requests_errors:rate5m
+        expr: sum by (job) (rate(http_requests_total{job="sample-api", status=~"5.."}[5m]))
+
+  - name: sample-api-red-error-ratio
+    interval: 15s
+    rules:
+      - record: job:http_requests_error_ratio:rate5m
+        expr: |
+          sum by (job) (rate(http_requests_total{job="sample-api", status=~"5.."}[5m]))
+          /
+          sum by (job) (rate(http_requests_total{job="sample-api"}[5m]))
+
+      # TODO 1: add job:http_requests_error_ratio:rate30m  (30m window)
+      # TODO 2: add job:http_requests_error_ratio:rate1h   (1h  window)
+      # TODO 3: add job:http_requests_error_ratio:rate6h   (6h  window)
+      #         (the fast-burn alert reads rate1h + rate5m; slow-burn reads
+      #          rate6h + rate30m -- so all four windows are required.)
+
+  - name: sample-api-red-duration
+    interval: 15s
+    # TODO 4: add job:http_request_duration_seconds:p99 using histogram_quantile
+    #         over sum by (le, job) (rate(http_request_duration_seconds_bucket[5m])).
+    # TODO 5: add job:http_request_duration_seconds:p50 (the 0.50 quantile).
+    rules: []

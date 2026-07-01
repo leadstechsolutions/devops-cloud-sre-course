@@ -1,0 +1,21 @@
+# The namespace that all of this app's objects live in.
+#
+# Pod Security Admission (PSA) is enforced by labelling the namespace. The
+# `restricted` profile is the strictest built-in standard: it forbids running
+# as root, privilege escalation, host namespaces, and most capabilities, and
+# requires a seccomp profile. The Deployment in this base is written to satisfy
+# `restricted`, so PSA acts as a backstop if someone weakens the pod spec.
+#
+#   enforce -> reject pods that violate the profile
+#   warn    -> surface violations to kubectl users
+#   audit   -> record violations in the audit log
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: web
+  labels:
+    app.kubernetes.io/part-of: kubernetes-fundamentals
+    pod-security.kubernetes.io/enforce: restricted
+    pod-security.kubernetes.io/enforce-version: latest
+    pod-security.kubernetes.io/warn: restricted
+    pod-security.kubernetes.io/audit: restricted

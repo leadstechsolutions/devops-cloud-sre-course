@@ -1,0 +1,86 @@
+# Alerting rules: multi-window, multi-burn-rate SLO alerts for the `checkout` service.
+# STARTER — you fill in the burn-rate expressions and thresholds (the TODOs below).
+#
+# Validate with: promtool check rules prometheus/rules/alerting.rules.yml
+#
+# SLO: 99.9% of requests succeed over 30 days  =>  error budget = 0.1% = 0.001.
+# Reference: Google SRE Workbook, "Alerting on SLOs" (multiwindow, multi-burn-rate).
+#
+# Recommended thresholds for a 30-day window:
+#   Severity   Long window  Short window  Burn rate
+#   page       1h           5m           14.4
+#   ticket     6h           30m          6
+#
+# The error_ratio:rateXX series are precomputed in recording.rules.yml. Use them — do
+# not re-derive the ratio inline. The threshold is  burn_rate * error_budget, i.e.
+# burn_rate * 0.001.
+
+groups:
+  - name: checkout-slo-burn-rate
+    rules:
+      # ============================ FAST BURN (page) ============================
+      - alert: CheckoutErrorBudgetBurnFast
+        # TODO(student): write a multi-window, multi-burn-rate expression.
+        # Fire only when BOTH the 1h window AND the 5m window exceed 14.4 * 0.001.
+        # Use the recorded series:
+        #   job:http_requests_error_ratio:rate1h{job="checkout"}
+        #   job:http_requests_error_ratio:rate5m{job="checkout"}
+        # Combine them with `and` so a single bad 5m blip alone cannot page, and a
+        # stale 1h average alone cannot page either. Replace the placeholder below.
+        expr: |
+          # TODO(student): replace this placeholder with the real fast-burn expression.
+          vector(0) > 1
+        for: 2m
+        labels:
+          severity: page
+          service: checkout
+          slo: availability
+          burn_rate: "14.4"
+        annotations:
+          summary: "checkout is burning its error budget FAST (14.4x)"
+          description: >-
+            Over the last 1h and 5m the checkout 5xx error ratio is
+            {{ $value | humanizePercentage }}, above the 1.44% fast-burn threshold
+            (14.4x the 99.9% SLO budget). Page on-call and start incident response.
+          runbook_url: "https://runbooks.example.com/checkout/error-budget-burn"
+          dashboard_url: "https://grafana.example.com/d/checkout-overview"
+
+      # ============================ SLOW BURN (ticket) =========================
+      - alert: CheckoutErrorBudgetBurnSlow
+        # TODO(student): same shape as the fast-burn alert, but the SLOW thresholds:
+        # fire only when BOTH the 6h window AND the 30m window exceed 6 * 0.001.
+        # Use job:http_requests_error_ratio:rate6h and ...:rate30m. Replace below.
+        expr: |
+          # TODO(student): replace this placeholder with the real slow-burn expression.
+          vector(0) > 1
+        for: 15m
+        labels:
+          severity: ticket
+          service: checkout
+          slo: availability
+          burn_rate: "6"
+        annotations:
+          summary: "checkout is burning its error budget slowly (6x)"
+          description: >-
+            Over the last 6h and 30m the checkout 5xx error ratio is
+            {{ $value | humanizePercentage }}, above the 0.6% slow-burn threshold
+            (6x the 99.9% SLO budget). Open a ticket and fix this within the week.
+          runbook_url: "https://runbooks.example.com/checkout/error-budget-burn"
+          dashboard_url: "https://grafana.example.com/d/checkout-overview"
+
+  # A plain latency SLO alert, provided complete as a worked example to compare against.
+  - name: checkout-latency
+    rules:
+      - alert: CheckoutHighLatencyP99
+        expr: job:http_request_duration_seconds:p99{job="checkout"} > 0.5
+        for: 10m
+        labels:
+          severity: ticket
+          service: checkout
+          slo: latency
+        annotations:
+          summary: "checkout p99 latency above 500ms"
+          description: >-
+            p99 request latency for checkout is {{ $value | humanizeDuration }}
+            (threshold 500ms) over the last 10 minutes.
+          runbook_url: "https://runbooks.example.com/checkout/high-latency"

@@ -1,0 +1,20 @@
+# Non-secret configuration for the app, injected as environment variables.
+#
+# ConfigMaps are for NON-sensitive config only — their values are stored in
+# plaintext in etcd and visible to anyone who can `kubectl get configmap`.
+# Anything sensitive (passwords, tokens) belongs in the Secret, not here.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: web-config
+  labels:
+    app.kubernetes.io/name: web
+    app.kubernetes.io/component: app
+data:
+  # The app reads PORT/HOST from the environment (see solution/server.py in the
+  # docker-containers module). 8000 matches the container's EXPOSE/HEALTHCHECK.
+  PORT: "8000"
+  HOST: "0.0.0.0"
+  LOG_LEVEL: "info"
+  # Example downstream endpoint the app would call. Not a secret.
+  UPSTREAM_URL: "http://web.web.svc.cluster.local:80"

@@ -1,0 +1,29 @@
+name: ci
+
+# STARTER CI for __SERVICE_NAME__. Complete the TODOs so every gate runs.
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Compile
+        run: python -m compileall -q app
+      - name: Unit tests
+        run: python -m unittest discover -s tests -p 'test_*.py' -v
+
+  # TODO: add a `lint` job that runs ruff and hadolint (Dockerfile).
+  # TODO: add a `helm` job: helm lint + helm template + kubeconform on chart/.
+  # TODO: add a `build-scan` job (needs: [test, helm]) that runs
+  #       `docker build` and a Trivy image scan failing on HIGH/CRITICAL.

@@ -1,0 +1,9 @@
+---
+# Handlers for the hardening role.
+# sshd is RELOADED (not restarted) so existing connections survive the change.
+# The lineinfile `validate:` already proved the config is syntactically valid
+# before we got here, so this reload is safe.
+- name: Restart sshd
+  ansible.builtin.service:
+    name: "{{ sshd_service_name | default('ssh') }}"
+    state: reloaded

@@ -1,0 +1,30 @@
+---
+# Master playbook: apply the three roles to every managed host.
+# Run:  ansible-playbook site.yml
+#       ansible-playbook site.yml --limit web      # only the web tier
+#       ansible-playbook site.yml --check --diff   # dry run, show changes
+#
+# Order matters: baseline (users/packages/tz) -> hardening (sshd/ufw) ->
+# cloudwatch_agent (ships logs/metrics). Hardening runs AFTER baseline so the
+# app user exists before we lock down SSH.
+- name: Configure all managed nodes (web + db)
+  hosts: all
+  become: true
+  gather_facts: true
+
+  # Roles run top-to-bottom. group_vars/all.yml supplies the variables.
+  roles:
+    - role: baseline
+      tags: [baseline]
+    - role: hardening
+      tags: [hardening, security]
+    - role: cloudwatch_agent
+      tags: [cloudwatch, observability]
+
+  # A post-run assertion so a successful play actually proves something.
+  post_tasks:
+    - name: Verify the application user exists
+      ansible.builtin.command:
+        cmd: "id {{ app_user }}"
+      changed_when: false
+      check_mode: false

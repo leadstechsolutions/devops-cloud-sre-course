@@ -1,0 +1,55 @@
+# STARTER compose — incomplete on purpose. Fill the TODO gaps so the stack
+# matches solution/compose.yaml: non-root, healthchecks, a private network,
+# resource limits, and NO published Redis port. Build context is the module
+# root so the app/ directory is included.
+#
+#     docker compose -f starter/compose.yaml up --build
+
+name: docker-containers-lab
+
+services:
+  app:
+    build:
+      context: ..
+      dockerfile: starter/Dockerfile
+    image: dc-naive:latest
+    environment:
+      PORT: "8000"
+      REDIS_HOST: redis
+      REDIS_PORT: "6379"
+    ports:
+      # TODO(student): publish ONLY on localhost (127.0.0.1) instead of all
+      # interfaces, so the app is not exposed on the host's external IPs.
+      - "8000:8000"
+    networks:
+      - appnet
+    # TODO(student): make `app` wait for redis to be healthy before starting.
+    #   Use depends_on with `condition: service_healthy` (redis defines a
+    #   healthcheck below — add the matching one to app too).
+    depends_on:
+      - redis
+    # TODO(student): add a healthcheck for app that runs python /app/healthcheck.py
+    #   (interval/timeout/retries/start_period), plus resource limits under
+    #   deploy.resources (cpus + memory). See solution/compose.yaml.
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    user: "999:999"
+    command: ["redis-server", "--save", "", "--appendonly", "no"]
+    networks:
+      - appnet
+    # NOTE: no `ports:` here is correct — keep Redis internal-only.
+    tmpfs:
+      - /tmp
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 3s
+    restart: unless-stopped
+
+networks:
+  appnet:
+    driver: bridge

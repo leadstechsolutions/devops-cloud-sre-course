@@ -1,0 +1,38 @@
+---
+# BROKEN FIXTURE — do not copy this into your role.
+#
+# This is a plausible-but-dangerous version of the hardening tasks that a
+# learner might write. It has THREE real defects the validation gate catches:
+#
+#   1. It LEAVES root login enabled (PermitRootLogin yes) — the opposite of the
+#      hardening goal.
+#   2. It edits sshd_config with NO `validate:` guard, so a typo would write a
+#      broken config and the next reload would lock everyone out.
+#   3. It enables the firewall's default-deny BEFORE allowing port 22, which
+#      drops the in-flight SSH session and bricks the host mid-play.
+#
+# Used by tests/test_broken_fixture.py, which asserts the gate REJECTS this file.
+# See README "Troubleshooting".
+
+- name: (WRONG) Permit root login over SSH
+  ansible.builtin.lineinfile:
+    path: /etc/ssh/sshd_config
+    regexp: '^#?\s*PermitRootLogin'
+    line: "PermitRootLogin yes"          # defect 1: should be 'no'
+    state: present
+    # defect 2: no validate: guard
+  notify: Restart sshd
+
+- name: (WRONG) Enable default-deny before allowing SSH
+  community.general.ufw:
+    state: enabled
+    policy: deny
+    direction: incoming
+  # defect 3: this runs before any 'allow 22' rule -> locks out the SSH session
+
+- name: Allow inbound ports (too late — host already unreachable)
+  community.general.ufw:
+    rule: allow
+    port: "{{ item.port }}"
+    proto: tcp
+  loop: "{{ ufw_allowed_ports }}"

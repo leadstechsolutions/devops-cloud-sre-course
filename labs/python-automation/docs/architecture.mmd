@@ -1,0 +1,37 @@
+%% python-automation: pure logic is testable offline; boto3 is isolated at the edge.
+flowchart LR
+    subgraph CLI["CLI entrypoints (live AWS path)"]
+        TA[tag_audit.py main]
+        RS[ec2_rightsize.py main]
+        CR[cost_report.py main]
+    end
+
+    subgraph WRAP["lib/awsclient.py (only boto3 importer, guarded)"]
+        SESS[get_session / get_client / paginate]
+    end
+
+    AWS[(AWS APIs:\nEC2 / CloudWatch / Cost Explorer)]
+
+    subgraph PURE["Pure logic (no AWS, unit-tested)"]
+        PTA[audit_resources / missing_tags / normalize_tag_list]
+        PRS[recommend / recommend_fleet / Thresholds]
+        PCR[summarize / parse_row / format_table]
+    end
+
+    TESTS[tests/ stdlib unittest\nhand-built fixtures]
+
+    TA --> SESS
+    RS --> SESS
+    CR --> SESS
+    SESS -->|fetched dicts/lists| TA
+    SESS -->|fetched dicts/lists| RS
+    SESS -->|fetched dicts/lists| CR
+    SESS <--> AWS
+
+    TA -->|already-fetched data| PTA
+    RS -->|already-fetched data| PRS
+    CR -->|already-fetched data| PCR
+
+    TESTS -.->|import, no network| PTA
+    TESTS -.->|import, no network| PRS
+    TESTS -.->|import, no network| PCR

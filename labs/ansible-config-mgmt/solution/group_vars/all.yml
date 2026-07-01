@@ -1,0 +1,50 @@
+---
+# Variables shared by every host. Override per-group by adding
+# group_vars/web.yml or group_vars/db.yml.
+
+# --- baseline role ----------------------------------------------------------
+app_user: appuser
+app_group: appuser
+app_user_shell: /bin/bash
+# Public key authorized for the app user. In a real run, override this with your
+# own key (e.g. via --extra-vars or a vault). The placeholder below is a VALID
+# but obviously-fake ed25519 key so syntax checks pass; do NOT use it for access.
+app_user_authorized_key: "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAILABplaceholderKEYdoNOTuseTHISreplaceMEplaceholder lab@example.com"
+
+# Packages every node gets. Kept small and distro-agnostic via the package module.
+baseline_packages:
+  - vim
+  - curl
+  - git
+  - htop
+  - unzip
+  - chrony
+  - python3-pip
+
+# Timezone applied to every host.
+system_timezone: "Etc/UTC"
+
+# --- hardening role ---------------------------------------------------------
+# SSH lockdown toggles. These are the secure defaults; flip only with care.
+ssh_permit_root_login: "no"
+ssh_password_authentication: "no"
+ssh_pubkey_authentication: "yes"
+ssh_max_auth_tries: 4
+ssh_client_alive_interval: 300
+ssh_client_alive_count_max: 2
+
+# UFW: default deny inbound, allow only these ports.
+ufw_allowed_ports:
+  - { port: "22", proto: "tcp", comment: "SSH" }
+  - { port: "80", proto: "tcp", comment: "HTTP" }
+  - { port: "443", proto: "tcp", comment: "HTTPS" }
+
+# --- cloudwatch_agent role --------------------------------------------------
+# Region the agent ships metrics/logs to. Override per environment.
+cloudwatch_region: "us-east-1"
+cloudwatch_namespace: "Lab/ConfigMgmt"
+# Log groups/files the agent tails.
+cloudwatch_log_group: "/lab/{{ node_role | default('host') }}/syslog"
+cloudwatch_log_retention_days: 14
+# Where the official Amazon CloudWatch agent .deb is fetched from.
+cloudwatch_agent_deb_url: "https://amazoncloudwatch-agent.s3.amazonaws.com/ubuntu/amd64/latest/amazon-cloudwatch-agent.deb"

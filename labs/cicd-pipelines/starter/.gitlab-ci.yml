@@ -1,0 +1,109 @@
+# GitLab CI mirror of the GitHub Actions CI pipeline.
+# Same five stages, same hard Trivy gate. Stages run left-to-right; a job only
+# starts when every job in the previous stage succeeded (GitLab's implicit needs).
+
+stages:
+  - lint
+  - test
+  - build
+  - scan
+  - deploy
+
+variables:
+  # Use the project registry; CI_REGISTRY_IMAGE is provided by GitLab.
+  IMAGE_TAG: "$CI_REGISTRY_IMAGE:$CI_COMMIT_SHORT_SHA"
+  # Pin Trivy DB caching dir so the scan job is reproducible.
+  TRIVY_CACHE_DIR: ".trivycache/"
+
+default:
+  # Run pipeline on merge requests and on the default branch only.
+  tags:
+    - docker
+
+# --- lint ---------------------------------------------------------------
+lint:ruff:
+  stage: lint
+  image: python:3.12-slim
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+    - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
+  script:
+    - pip install --no-cache-dir ruff==0.5.0
+    - ruff check app
+
+lint:hadolint:
+  stage: lint
+  image: hadolint/hadolint:latest-debian
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+    - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
+  script:
+    - hadolint app/Dockerfile
+
+# --- test ---------------------------------------------------------------
+test:pytest:
+  stage: test
+  image: python:3.12-slim
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+    - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
+  script:
+    - pip install --no-cache-dir -r app/requirements.txt
+    - cd app && python -m pytest -q
+
+# --- build --------------------------------------------------------------
+build:image:
+  stage: build
+  image: docker:27
+  services:
+    - docker:27-dind
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+    - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
+  script:
+    - docker build -t "$IMAGE_TAG" -f app/Dockerfile app
+    - docker save "$IMAGE_TAG" -o image.tar
+  artifacts:
+    paths:
+      - image.tar
+    expire_in: 1 hour
+
+# --- scan (THE GATE) ----------------------------------------------------
+# allow_failure: false is the mirror of GitHub's exit-code: '1'. Trivy exits 1
+# on HIGH/CRITICAL findings, the job fails, and because the job is NOT allowed
+# to fail, the whole pipeline fails and the MR cannot be merged (with "Pipelines
+# must succeed" enabled in the project's merge-request settings).
+scan:trivy:
+  stage: scan
+  image:
+    name: aquasec/trivy:0.55.0
+    entrypoint: [""]
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+    - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
+  allow_failure: false
+  script:
+    - trivy image --input image.tar
+      --severity HIGH,CRITICAL
+      --ignore-unfixed
+      --exit-code 1
+      --no-progress
+
+# --- deploy -------------------------------------------------------------
+# Only on semver tags, and only after a manual click (mirrors the GitHub
+# `environment: production` required-reviewer gate).
+deploy:production:
+  stage: deploy
+  image: docker:27
+  services:
+    - docker:27-dind
+  rules:
+    - if: '$CI_COMMIT_TAG =~ /^v\d+\.\d+\.\d+/'
+      when: manual
+  environment:
+    name: production
+    url: https://app.example.com/healthz
+  script:
+    - echo "$CI_REGISTRY_PASSWORD" | docker login -u "$CI_REGISTRY_USER" --password-stdin "$CI_REGISTRY"
+    - docker build -t "$CI_REGISTRY_IMAGE:$CI_COMMIT_TAG" -f app/Dockerfile app
+    - docker push "$CI_REGISTRY_IMAGE:$CI_COMMIT_TAG"

@@ -1,0 +1,18 @@
+# Copy to terraform.tfvars and edit. terraform.tfvars is gitignored — never commit real values.
+
+project     = "tf-aws-foundations"
+environment = "dev"
+region      = "us-east-1"
+
+# S3 bucket names are GLOBALLY unique. Change this before you apply, or you will
+# hit BucketAlreadyExists. Add your initials and a date suffix.
+bucket_name = "tf-aws-foundations-secure-s3-CHANGE-ME-001"
+
+# Lab convenience: lets `terraform destroy` delete the bucket even if it still
+# holds objects/versions. Keep false outside throwaway labs.
+force_destroy = true
+
+tags = {
+  Owner      = "platform-team"
+  CostCenter = "1234"
+}

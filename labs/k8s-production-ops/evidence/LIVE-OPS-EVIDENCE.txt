@@ -1,0 +1,190 @@
+##################################################################
+# k8s-production-ops — LIVE OPS EVIDENCE
+# generated: 2026-06-30T14:40:22Z
+# host kubectl: v1.34.2
+# drills context (1-3): kind-course
+# server (kind-course): v1.31.0
+##################################################################
+
+
+################################################################
+# RUN: Drill 1 — rollout/rollback
+################################################################
+==================================================================
+DRILL 1: rollout / rollback   (ns=prodops-rollout-239213  ctx=kind-course)
+==================================================================
+--- [v1] waiting for healthy rollout of cpu-burner:1.0.0 ---
+Waiting for deployment "cpu-burner" rollout to finish: 0 of 3 updated replicas are available...
+Waiting for deployment "cpu-burner" rollout to finish: 1 of 3 updated replicas are available...
+Waiting for deployment "cpu-burner" rollout to finish: 2 of 3 updated replicas are available...
+deployment "cpu-burner" successfully rolled out
+
+--- [v1] pods (expect 3/3 Running) ---
+NAME                         READY   STATUS    RESTARTS   AGE   IP             NODE                   NOMINATED NODE   READINESS GATES
+cpu-burner-ddf9599f6-7t4n4   1/1     Running   0          5s    10.244.0.154   course-control-plane   <none>           <none>
+cpu-burner-ddf9599f6-hk9q2   1/1     Running   0          5s    10.244.0.155   course-control-plane   <none>           <none>
+cpu-burner-ddf9599f6-tld44   1/1     Running   0          5s    10.244.0.156   course-control-plane   <none>           <none>
+
+--- [v2-BAD] set image to a non-existent tag -> rollout must get STUCK ---
+rollout status (expected to FAIL within the timeout):
+Waiting for deployment "cpu-burner" rollout to finish: 1 out of 3 new replicas have been updated...
+error: timed out waiting for the condition
+  -> kubectl rollout status exited non-zero (1) as designed.
+
+--- [v2-BAD] pods: new ReplicaSet pod should be ImagePullBackOff/ErrImagePull ---
+NAME                          READY   STATUS             RESTARTS   AGE   IP             NODE                   NOMINATED NODE   READINESS GATES
+cpu-burner-856854b69c-ln8p5   0/1     ImagePullBackOff   0          44s   10.244.0.157   course-control-plane   <none>           <none>
+cpu-burner-ddf9599f6-7t4n4    1/1     Running            0          50s   10.244.0.154   course-control-plane   <none>           <none>
+cpu-burner-ddf9599f6-hk9q2    1/1     Running            0          50s   10.244.0.155   course-control-plane   <none>           <none>
+cpu-burner-ddf9599f6-tld44    1/1     Running            0          50s   10.244.0.156   course-control-plane   <none>           <none>
+
+--- [v2-BAD] waiting-state reasons across pods ---
+cpu-burner-856854b69c-ln8p5	ImagePullBackOff
+cpu-burner-ddf9599f6-7t4n4	<running>
+cpu-burner-ddf9599f6-hk9q2	<running>
+cpu-burner-ddf9599f6-tld44	<running>
+
+--- [v2-BAD] still-Ready replicas (old v1 pods keep serving) ---
+readyReplicas during stuck rollout = 3 (availability preserved by maxUnavailable:0)
+
+--- rollout history BEFORE undo ---
+deployment.apps/cpu-burner 
+REVISION  CHANGE-CAUSE
+1         <none>
+2         kubectl set image deploy/cpu-burner cpu-burner=cpu-burner:nonexistent-v2 --context=kind-course --namespace=prodops-rollout-239213 --record=true
+
+
+--- [undo] kubectl rollout undo -> back to last good revision ---
+deployment.apps/cpu-burner rolled back
+deployment "cpu-burner" successfully rolled out
+
+--- [undo] pods (expect 3/3 Running on cpu-burner:1.0.0) ---
+NAME                          READY   STATUS        RESTARTS   AGE   IP             NODE                   NOMINATED NODE   READINESS GATES
+cpu-burner-856854b69c-ln8p5   0/1     Terminating   0          45s   10.244.0.157   course-control-plane   <none>           <none>
+cpu-burner-ddf9599f6-7t4n4    1/1     Running       0          51s   10.244.0.154   course-control-plane   <none>           <none>
+cpu-burner-ddf9599f6-hk9q2    1/1     Running       0          51s   10.244.0.155   course-control-plane   <none>           <none>
+cpu-burner-ddf9599f6-tld44    1/1     Running       0          51s   10.244.0.156   course-control-plane   <none>           <none>
+
+--- [undo] images on the live ReplicaSet ---
+cpu-burner:1.0.0
+
+--- rollout history AFTER undo ---
+deployment.apps/cpu-burner 
+REVISION  CHANGE-CAUSE
+2         kubectl set image deploy/cpu-burner cpu-burner=cpu-burner:nonexistent-v2 --context=kind-course --namespace=prodops-rollout-239213 --record=true
+3         <none>
+
+
+RESULT: PASS — rollback healthy (3/3 Ready on cpu-burner:1.0.0).
+>>> Drill 1 — rollout/rollback: EXIT 0 (PASS)
+
+################################################################
+# RUN: Drill 2 — PodDisruptionBudget
+################################################################
+==================================================================
+DRILL 2: PodDisruptionBudget   (ns=prodops-pdb-242112  ctx=kind-course)
+==================================================================
+--- waiting for 3/3 cpu-burner pods ---
+Waiting for deployment "cpu-burner" rollout to finish: 0 of 3 updated replicas are available...
+Waiting for deployment "cpu-burner" rollout to finish: 1 of 3 updated replicas are available...
+Waiting for deployment "cpu-burner" rollout to finish: 2 of 3 updated replicas are available...
+deployment "cpu-burner" successfully rolled out
+
+--- PDB object (note ALLOWED DISRUPTIONS) ---
+NAME         MIN AVAILABLE   MAX UNAVAILABLE   ALLOWED DISRUPTIONS   AGE
+cpu-burner   2               N/A               1                     5s
+
+--- PDB status (machine-readable) ---
+minAvailable=2
+currentHealthy=3
+desiredHealthy=2
+disruptionsAllowed=1
+  -> ALLOWED DISRUPTIONS = 1  (currentHealthy 3 - minAvailable 2)
+
+--- VOLUNTARY disruption #1: evict cpu-burner-ddf9599f6-5c7qm (3 healthy -> 2; budget allows) ---
+{"kind":"Status","apiVersion":"v1","metadata":{},"status":"Success","code":201}
+  -> eviction ALLOWED (budget had 1 disruption to give).
+
+--- disruptionsAllowed immediately after eviction #1 ---
+disruptionsAllowed=0
+
+--- VOLUNTARY disruption #2: evict a DISTINCT healthy pod while budget=0 -> MUST be DENIED ---
+attempt 1: evict cpu-burner-ddf9599f6-cq5sn
+  Error from server (TooManyRequests): Cannot evict pod as it would violate the pod's disruption budget.
+  -> eviction DENIED (HTTP 429 'Cannot evict ... violate the disruption budget').
+     This is exactly what 'kubectl drain' backs off and retries on.
+
+--- INVOLUNTARY disruption: 'kubectl delete pod' BYPASSES the PDB entirely ---
+deleting healthy pod cpu-burner-ddf9599f6-5c7qm directly (no eviction API => no budget check):
+pod "cpu-burner-ddf9599f6-5c7qm" deleted from prodops-pdb-242112 namespace
+  -> delete accepted regardless of the budget; a PDB does NOT stop direct deletes,
+     node failures, kernel OOM, or other INVOLUNTARY disruptions.
+
+--- deployment self-heals back to 3 replicas ---
+deployment "cpu-burner" successfully rolled out
+NAME         MIN AVAILABLE   MAX UNAVAILABLE   ALLOWED DISRUPTIONS   AGE
+cpu-burner   2               N/A               1                     12s
+
+RESULT: PASS — PDB observed: ALLOWED=1 at rest, eviction gated by minAvailable,
+        direct delete bypasses the budget, deployment recovered (currentHealthy=3).
+>>> Drill 2 — PodDisruptionBudget: EXIT 0 (PASS)
+
+################################################################
+# RUN: Drill 3 — ResourceQuota+LimitRange
+################################################################
+==================================================================
+DRILL 3: ResourceQuota + LimitRange   (ns=prodops-quota-243909  ctx=kind-course)
+==================================================================
+--- ResourceQuota (HARD limits) ---
+{"limits.cpu":"1","limits.memory":"1Gi","pods":"5","requests.cpu":"500m","requests.memory":"512Mi"}
+
+--- LimitRange (defaults + per-container max) ---
+Name:       team-limits
+Namespace:  prodops-quota-243909
+Type        Resource  Min   Max    Default Request  Default Limit  Max Limit/Request Ratio
+----        --------  ---   ---    ---------------  -------------  -----------------------
+Container   cpu       10m   500m   100m             200m           -
+Container   memory    16Mi  256Mi  64Mi             128Mi          -
+
+==================================================================
+CASE 1: pod EXCEEDS LimitRange max (requests 2 CPU; max 500m) -> REJECT
+==================================================================
+Error from server (Forbidden): error when creating "/home/aspire/repos/devops-cloud-sre/labs/k8s-production-ops/solution/manifests/pod-over-quota.yaml": pods "over-quota" is forbidden: maximum cpu usage per Container is 500m, but limit is 2
+kubectl exit code = 1
+  -> rejection captured (admission denied as designed).
+confirm the over-quota pod does NOT exist:
+  Error from server (NotFound): pods "over-quota" not found
+
+==================================================================
+CASE 2: COMPLIANT pod (100m/200m CPU) -> ADMITTED
+==================================================================
+pod/compliant created
+waiting for the compliant pod to run...
+pod/compliant condition met
+NAME        READY   STATUS    RESTARTS   AGE   IP             NODE                   NOMINATED NODE   READINESS GATES
+compliant   1/1     Running   0          1s    10.244.0.172   course-control-plane   <none>           <none>
+
+--- quota USED vs HARD after admitting the compliant pod ---
+Name:            team-quota
+Namespace:       prodops-quota-243909
+Resource         Used   Hard
+--------         ----   ----
+limits.cpu       200m   1
+limits.memory    128Mi  1Gi
+pods             1      5
+requests.cpu     100m   500m
+requests.memory  64Mi   512Mi
+
+RESULT: PASS — over-quota pod REJECTED at admission; compliant pod ADMITTED;
+        quota now shows pods USED=1 / HARD=5.
+>>> Drill 3 — ResourceQuota+LimitRange: EXIT 0 (PASS)
+
+################################################################
+# Drill 4 — NetworkPolicy: PROVEN on Calico (no-policy=ALLOWED -> default-deny=BLOCKED
+#   curl_exit=28 -> allow=ALLOWED). Full output: evidence/LIVE-NETPOL-EVIDENCE.txt
+################################################################
+
+##################################################################
+# ALL DRILLS PASSED
+# evidence written to: /home/aspire/repos/devops-cloud-sre/labs/k8s-production-ops/evidence/LIVE-OPS-EVIDENCE.txt
+##################################################################

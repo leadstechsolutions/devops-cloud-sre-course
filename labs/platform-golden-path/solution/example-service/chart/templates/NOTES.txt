@@ -1,0 +1,15 @@
+{{ include "service.name" . }} has been deployed.
+
+Release:   {{ .Release.Name }}
+Namespace: {{ .Release.Namespace }}
+Image:     {{ include "service.image" . }}
+
+Reach it from inside the cluster:
+
+  kubectl -n {{ .Release.Namespace }} port-forward svc/{{ include "service.fullname" . }} 8080:{{ .Values.service.port }}
+  curl localhost:8080/healthz
+  curl localhost:8080/
+
+Probes:
+  liveness  GET {{ .Values.livenessProbe.httpGet.path }}
+  readiness GET {{ .Values.readinessProbe.httpGet.path }}

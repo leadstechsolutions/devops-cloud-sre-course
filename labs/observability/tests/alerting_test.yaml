@@ -1,0 +1,65 @@
+# promtool unit-test file for the burn-rate alerts.
+# Run with: promtool test rules tests/alerting_test.yaml
+# (validate.sh runs this automatically when promtool is on PATH; it is also YAML-parse-
+#  and yamllint-checked.)
+#
+# It loads the recording + alerting rules, synthesizes a counter that produces a high
+# error ratio, and asserts the fast-burn alert fires (and that a healthy series does
+# NOT fire). This is the gate that proves the burn-rate math is correct end to end.
+#
+# NOTE: `rule_files` paths are relative to THIS file's directory, so we reach up into
+# ../solution/prometheus/rules.
+
+rule_files:
+  - ../solution/prometheus/rules/recording.rules.yml
+  - ../solution/prometheus/rules/alerting.rules.yml
+
+evaluation_interval: 1m
+
+tests:
+  # ---- Case 1: a sustained 5% error rate => fast burn fires (50x budget) ----------
+  - interval: 1m
+    input_series:
+      # 95 good (200) requests/min and 5 bad (500) requests/min for 90 minutes.
+      # 5% error ratio = 50x the 0.001 budget, well over the 14.4x fast-burn line.
+      - series: 'http_requests_total{job="checkout", status_code="200"}'
+        values: "0+95x90"
+      - series: 'http_requests_total{job="checkout", status_code="500"}'
+        values: "0+5x90"
+    alert_rule_test:
+      - eval_time: 70m   # long enough for the 1h window to fill + the 2m `for`
+        alertname: CheckoutErrorBudgetBurnFast
+        exp_alerts:
+          - exp_labels:
+              severity: page
+              service: checkout
+              slo: availability
+              burn_rate: "14.4"
+              job: checkout
+            # promtool requires exp_annotations to match the rule's rendered set
+            # EXACTLY — including the templated `description`. With a sustained 5%
+            # error ratio the {{ $value | humanizePercentage }} renders as "5%".
+            exp_annotations:
+              summary: "checkout is burning its error budget FAST (14.4x)"
+              description: >-
+                Over the last 1h and 5m the checkout 5xx error ratio is 5%, above
+                the 1.44% fast-burn threshold (14.4x the 99.9% SLO budget). At this
+                rate the 30-day error budget is consumed in ~2 days. Page on-call
+                and start incident response.
+              runbook_url: "https://runbooks.example.com/checkout/error-budget-burn"
+              dashboard_url: "https://grafana.example.com/d/checkout-overview"
+
+  # ---- Case 2: a healthy service (0.01% errors) => NO alert fires ------------------
+  - interval: 1m
+    input_series:
+      - series: 'http_requests_total{job="checkout", status_code="200"}'
+        values: "0+1000x90"
+      - series: 'http_requests_total{job="checkout", status_code="500"}'
+        values: "0+0x90"     # zero errors => 0 burn
+    alert_rule_test:
+      - eval_time: 70m
+        alertname: CheckoutErrorBudgetBurnFast
+        exp_alerts: []        # must NOT fire
+      - eval_time: 70m
+        alertname: CheckoutErrorBudgetBurnSlow
+        exp_alerts: []

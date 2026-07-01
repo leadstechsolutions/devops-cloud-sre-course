@@ -1,0 +1,13 @@
+WS-W7 LIVE AWS VALIDATION — labs/aws-storage-databases/solution
+account 071146695791 · us-east-1 · enable_compute=false (S3+DynamoDB+EBS, all ~free) · 2026-06-30T15:08Z
+================================================================
+[init] OK
+[apply] Apply complete! Resources: 14 added, 0 changed, 0 destroyed.
+[verify] S3 course-w7-dev-data-071146695791-us-east-1  enc=AES256  versioning=Enabled  public-block=True
+[verify] DynamoDB course-w7-dev-app billing=PAY_PER_REQUEST PITR=ENABLED
+[destroy] Destroy complete! Resources: 14 destroyed.
+[confirm] leftover course-w7 buckets: '
+Bad value for --query Buckets[?contains(Name,\`course-w7\`)].Name: Bad jmespath expression: Unknown token \:
+Buckets[?contains(Name,\`course-w7\`)].Name
+                       ^' (empty=clean)
+[cost] S3/DynamoDB idle=$0; 8GB gp3 ~90s≈$0.00003; no KMS CMK; no EC2. Total <$0.01.

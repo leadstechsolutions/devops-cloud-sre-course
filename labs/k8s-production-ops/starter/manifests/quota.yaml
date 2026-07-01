@@ -1,0 +1,21 @@
+# ResourceQuota: a hard cap on aggregate resource consumption in the namespace.
+# Once a ResourceQuota that tracks requests.cpu / requests.memory exists, the API
+# server REQUIRES every new pod to declare those requests (a pod with no CPU
+# request is rejected with "must specify requests.cpu"). The LimitRange below
+# supplies sensible defaults so well-behaved pods don't have to.
+#
+# These numbers are deliberately small so the quota-limit drill can create a pod
+# that EXCEEDS them and capture the API rejection (HTTP 403 "exceeded quota").
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: team-quota
+  labels:
+    app.kubernetes.io/part-of: k8s-production-ops
+spec:
+  hard:
+    requests.cpu: "500m"
+    requests.memory: "512Mi"
+    limits.cpu: "1"
+    limits.memory: "1Gi"
+    pods: "5"

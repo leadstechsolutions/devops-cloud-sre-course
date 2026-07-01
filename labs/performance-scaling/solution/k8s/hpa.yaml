@@ -1,0 +1,50 @@
+# HorizontalPodAutoscaler: scale cpu-burner between 1 and 5 replicas to hold
+# average CPU near 50% of the *request* (100m -> target ~50m/pod). When sustained
+# /burn load pushes the single pod above 50% of its request, the HPA adds pods;
+# when load drops, it scales back in after the stabilisation window.
+#
+# REQUIRES metrics-server in the cluster (so `kubectl top pod` works). Without
+# it the HPA reports `<unknown>/50%` for current utilisation and never scales —
+# this is the single most common reason an HPA "doesn't work" (see Troubleshooting).
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: cpu-burner
+  labels:
+    app.kubernetes.io/name: cpu-burner
+    app.kubernetes.io/component: app
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: cpu-burner
+  minReplicas: 1
+  maxReplicas: 5
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 50
+  behavior:
+    scaleUp:
+      # React fast so the demo shows scale-out within the load window. Allow
+      # doubling (or +2 pods) every 15s, no stabilisation delay on the way up.
+      stabilizationWindowSeconds: 0
+      policies:
+        - type: Percent
+          value: 100
+          periodSeconds: 15
+        - type: Pods
+          value: 2
+          periodSeconds: 15
+      selectPolicy: Max
+    scaleDown:
+      # Don't thrash on the way down: require ~1 min of sustained low load
+      # before removing pods. Production values are often 300s+.
+      stabilizationWindowSeconds: 60
+      policies:
+        - type: Pods
+          value: 1
+          periodSeconds: 30

@@ -1,0 +1,33 @@
+# Production overlay: reuse the base unchanged, then patch only what production
+# needs to differ — here, more replicas. The HPA still owns runtime scaling;
+# this raises the *floor* the Deployment starts from.
+#
+# Render with:  kubectl kustomize solution/overlays/prod
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+# Point at the base. Relative path from this file.
+resources:
+  - ../../base
+
+# A name prefix makes prod objects unambiguous when several overlays share a
+# cluster/namespace (web -> prod-web).
+namePrefix: prod-
+
+labels:
+  - includeSelectors: false
+    pairs:
+      environment: production
+
+# Strategic-merge patch: bump the Deployment to 4 replicas in prod. Kustomize
+# matches the patch to the resource by group/kind/name.
+patches:
+  - target:
+      group: apps
+      version: v1
+      kind: Deployment
+      name: web
+    patch: |-
+      - op: replace
+        path: /spec/replicas
+        value: 4

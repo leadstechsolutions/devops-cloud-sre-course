@@ -1,0 +1,51 @@
+# BROKEN FIXTURE — do not "fix" the chart with this file.
+#
+# This is the deployment template from solution/, with TWO real, reproducible
+# Helm authoring bugs injected. Drop it over the chart to reproduce the failure,
+# diagnose it, and fix it. See README "Troubleshooting".
+#
+# Reproduce:
+#   cp broken/deployment.yaml solution/chart/webapp/templates/deployment.yaml
+#   ./validate.sh          # the prerender gate now FAILS
+#   helm template ./solution/chart/webapp   # (where helm exists) errors too
+#
+# Bug 1 (line ~40): `resources` uses `toYaml` WITHOUT a following `nindent`, so
+#   the rendered block lands at column 0 and corrupts the container mapping.
+#   The fix is `{{- toYaml .Values.resources | nindent 12 }}`.
+# Bug 2 (line ~30): the `ports:` list item is under-indented by two spaces, so
+#   `containerPort` is no longer a child of the list item. This breaks the
+#   static YAML skeleton, which the offline prerender gate catches.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "webapp.fullname" . }}
+  labels:
+    {{- include "webapp.labels" . | nindent 4 }}
+spec:
+  {{- if not .Values.autoscaling.enabled }}
+  replicas: {{ .Values.replicaCount }}
+  {{- end }}
+  selector:
+    matchLabels:
+      {{- include "webapp.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "webapp.selectorLabels" . | nindent 8 }}
+    spec:
+      serviceAccountName: {{ include "webapp.serviceAccountName" . }}
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      containers:
+        - name: {{ .Chart.Name }}
+          image: {{ include "webapp.image" . | quote }}
+          ports:
+            - name: http
+            containerPort: {{ .Values.containerPort }}
+              protocol: TCP
+          livenessProbe:
+            {{- toYaml .Values.livenessProbe | nindent 12 }}
+          readinessProbe:
+            {{- toYaml .Values.readinessProbe | nindent 12 }}
+          resources:
+            {{- toYaml .Values.resources }}

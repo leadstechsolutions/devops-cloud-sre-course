@@ -1,0 +1,20 @@
+# STARTER — TODO: write a default-deny-INGRESS NetworkPolicy for the namespace.
+#
+# Goal: deny ALL inbound traffic to EVERY pod in the namespace, so that the only
+# flows allowed are the ones a later allow-policy explicitly permits (zero trust).
+#
+# Acceptance (see ../../../solution/manifests/netpol/default-deny.yaml and
+# drills/networkpolicy.sh): on a Calico cluster, after applying this, a curl from
+# the client pod to the server Service TIMES OUT (curl exit 28).
+#
+# Hints:
+#   - An EMPTY podSelector ({}) selects every pod in the namespace.
+#   - Listing a policyType but giving NO matching rules = deny that direction.
+#   - You want policyTypes: [Ingress] and NO ingress rules.
+#
+# TODO: complete the spec.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: default-deny-ingress
+spec: {}  # TODO: select all pods; set policyTypes to deny all ingress

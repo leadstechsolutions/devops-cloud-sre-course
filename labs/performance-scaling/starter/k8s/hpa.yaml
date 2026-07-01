@@ -1,0 +1,40 @@
+# TODO(lab): Complete this HorizontalPodAutoscaler.
+#
+# Goal: scale the cpu-burner Deployment on CPU utilisation.
+#   - target the Deployment named "cpu-burner" (apps/v1)
+#   - minReplicas: 1, maxReplicas: 5
+#   - metric: Resource cpu, Utilization, averageUtilization 50
+#       (50% of the pod's CPU *request* — not 50% of a core)
+#   - (stretch) add a `behavior:` block so scale-up is fast (stabilisation 0)
+#     and scale-down is damped (stabilisation ~60s) to avoid thrashing.
+#
+# Requires metrics-server in the cluster, or TARGETS shows <unknown> and the
+# HPA never scales. run-demo.sh installs it for you.
+#
+# Done when:
+#   kubectl -n lab-perf get hpa cpu-burner
+#   shows TARGETS as "<n>%/50%" (not "<unknown>/50%") and REPLICAS rising under load.
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: cpu-burner
+  labels:
+    app.kubernetes.io/name: cpu-burner
+    app.kubernetes.io/component: app
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: cpu-burner
+  # TODO: set minReplicas and maxReplicas (1 and 5).
+  minReplicas: # FIXME
+  maxReplicas: # FIXME
+  # TODO: add a metrics: block targeting CPU Utilization at 50% of the request.
+  # metrics:
+  #   - type: Resource
+  #     resource:
+  #       name: cpu
+  #       target:
+  #         type: Utilization
+  #         averageUtilization: # FIXME (50)
+  # TODO (stretch): add a behavior: block (fast scaleUp, damped scaleDown).

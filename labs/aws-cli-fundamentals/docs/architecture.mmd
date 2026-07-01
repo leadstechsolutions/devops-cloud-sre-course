@@ -1,0 +1,19 @@
+flowchart TD
+    creds["AWS credentials<br/>(AWS_PROFILE / SSO token / env keys)"] --> lib
+
+    lib["lib/common.sh<br/>log() die() require_cmd()<br/>aws_region() require_aws_creds()"]
+
+    lib --> whoami["whoami.sh<br/>sts:GetCallerIdentity"]
+    lib --> regions["regions.sh<br/>ec2:DescribeRegions"]
+    lib --> inventory["inventory.sh<br/>ec2:DescribeInstances<br/>s3:ListBuckets<br/>iam:ListUsers"]
+    lib --> cost["cost-guard.sh<br/>running EC2 / NAT GW<br/>idle EIP / detached EBS"]
+    lib --> tags["tag-audit.sh<br/>missing required tags<br/>(EC2 + EBS)"]
+
+    whoami -->|account / ARN / region| out["stdout: data tables<br/>stderr: timestamped logs"]
+    regions --> out
+    inventory --> out
+    cost -->|exit 1 if findings| out
+    tags -->|exit 1 if violations| out
+
+    classDef ro fill:#e6f4ea,stroke:#137333;
+    class whoami,regions,inventory,cost,tags ro;

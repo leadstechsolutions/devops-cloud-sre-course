@@ -1,0 +1,107 @@
+# Recording rules: precompute the RED-method series for the `checkout` service.
+#   R - Rate    : requests per second
+#   E - Errors  : ratio of 5xx responses (0..1)
+#   D - Duration: p99 latency from the native/classic histogram
+#
+# Validate with: promtool check rules prometheus/rules/recording.rules.yml
+#
+# Why record instead of computing in dashboards/alerts every time:
+#   - the SLO error-budget-burn alerts (alerting.rules.yml) reuse the SAME error-ratio
+#     definition at multiple windows; recording it once guarantees they agree.
+#   - histogram_quantile over a large _bucket series is expensive; evaluating it on a
+#     fixed cadence and storing the result keeps dashboards and alerts cheap.
+#
+# Naming follows the Prometheus convention level:metric:operation, e.g.
+#   job:http_requests:rate5m  ->  "per-job http_requests, as a 5m rate".
+
+groups:
+  - name: checkout-red-recording
+    interval: 30s
+    rules:
+      # --- R: request rate (requests/second), per job, over a 5m window -----------
+      - record: job:http_requests:rate5m
+        expr: |
+          sum by (job) (
+            rate(http_requests_total{job="checkout"}[5m])
+          )
+
+      # --- R: same rate broken down by route, for the dashboard's top-N panel -----
+      - record: job_route:http_requests:rate5m
+        expr: |
+          sum by (job, route) (
+            rate(http_requests_total{job="checkout"}[5m])
+          )
+
+      # --- E: error rate (5xx requests/second) ------------------------------------
+      - record: job:http_requests_errors:rate5m
+        expr: |
+          sum by (job) (
+            rate(http_requests_total{job="checkout", status_code=~"5.."}[5m])
+          )
+
+      # --- E: error RATIO (errors / total), 0..1. The SLI for availability. -------
+      # Guard against 0/0 when there is no traffic: `> 0` on the denominator via the
+      # `or vector(0)` idiom would hide gaps, so instead we let the division yield no
+      # samples when the denominator is absent — alerts treat "no data" explicitly.
+      - record: job:http_requests_error_ratio:rate5m
+        expr: |
+          sum by (job) (
+            rate(http_requests_total{job="checkout", status_code=~"5.."}[5m])
+          )
+          /
+          sum by (job) (
+            rate(http_requests_total{job="checkout"}[5m])
+          )
+
+      # Longer windows reused by the multi-burn-rate alerts (must match alert windows).
+      - record: job:http_requests_error_ratio:rate30m
+        expr: |
+          sum by (job) (
+            rate(http_requests_total{job="checkout", status_code=~"5.."}[30m])
+          )
+          /
+          sum by (job) (
+            rate(http_requests_total{job="checkout"}[30m])
+          )
+
+      - record: job:http_requests_error_ratio:rate1h
+        expr: |
+          sum by (job) (
+            rate(http_requests_total{job="checkout", status_code=~"5.."}[1h])
+          )
+          /
+          sum by (job) (
+            rate(http_requests_total{job="checkout"}[1h])
+          )
+
+      - record: job:http_requests_error_ratio:rate6h
+        expr: |
+          sum by (job) (
+            rate(http_requests_total{job="checkout", status_code=~"5.."}[6h])
+          )
+          /
+          sum by (job) (
+            rate(http_requests_total{job="checkout"}[6h])
+          )
+
+      # --- D: p99 request latency (seconds) from the classic histogram ------------
+      # histogram_quantile needs the per-bucket rate summed by the `le` label. We keep
+      # `route` so the dashboard can show latency per route; the job-level p99 sums
+      # over routes first.
+      - record: job:http_request_duration_seconds:p99
+        expr: |
+          histogram_quantile(
+            0.99,
+            sum by (job, le) (
+              rate(http_request_duration_seconds_bucket{job="checkout"}[5m])
+            )
+          )
+
+      - record: job_route:http_request_duration_seconds:p99
+        expr: |
+          histogram_quantile(
+            0.99,
+            sum by (job, route, le) (
+              rate(http_request_duration_seconds_bucket{job="checkout"}[5m])
+            )
+          )

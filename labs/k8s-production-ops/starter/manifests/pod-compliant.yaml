@@ -1,0 +1,40 @@
+# A compliant pod: its requests/limits sit inside the LimitRange ceiling and the
+# remaining ResourceQuota budget, so the API server ADMITS it. The quota-limit
+# drill applies this after the over-quota rejection to show the same namespace
+# accepting a well-sized workload.
+apiVersion: v1
+kind: Pod
+metadata:
+  name: compliant
+  labels:
+    app.kubernetes.io/name: compliant
+    app.kubernetes.io/part-of: k8s-production-ops
+spec:
+  securityContext:
+    runAsNonRoot: true
+    runAsUser: 10001
+    seccompProfile:
+      type: RuntimeDefault
+  containers:
+    - name: app
+      image: cpu-burner:1.0.0
+      imagePullPolicy: IfNotPresent
+      resources:
+        requests:
+          cpu: 100m
+          memory: 64Mi
+        limits:
+          cpu: 200m
+          memory: 128Mi
+      securityContext:
+        allowPrivilegeEscalation: false
+        readOnlyRootFilesystem: true
+        capabilities:
+          drop:
+            - ALL
+      volumeMounts:
+        - name: tmp
+          mountPath: /tmp
+  volumes:
+    - name: tmp
+      emptyDir: {}

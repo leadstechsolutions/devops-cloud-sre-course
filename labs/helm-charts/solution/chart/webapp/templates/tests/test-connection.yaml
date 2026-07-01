@@ -1,0 +1,29 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: "{{ include "webapp.fullname" . }}-test-connection"
+  labels:
+    {{- include "webapp.labels" . | nindent 4 }}
+  annotations:
+    # Marks this Pod as a Helm test, run by `helm test <release>` and deleted
+    # afterwards. delete-on-success keeps the namespace clean.
+    "helm.sh/hook": test
+    "helm.sh/hook-delete-policy": before-hook-creation,hook-succeeded
+spec:
+  restartPolicy: Never
+  containers:
+    - name: wget
+      image: busybox:1.36
+      command: ["wget"]
+      args:
+        - "--timeout=5"
+        - "--spider"
+        - "http://{{ include "webapp.fullname" . }}:{{ .Values.service.port }}/"
+      securityContext:
+        allowPrivilegeEscalation: false
+        readOnlyRootFilesystem: true
+        runAsNonRoot: true
+        runAsUser: 65534
+        capabilities:
+          drop:
+            - ALL

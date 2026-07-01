@@ -1,0 +1,67 @@
+%% Capstone full-system architecture.
+%% Each subgraph is owned by one course module; the capstone wires them together.
+%% Render: https://mermaid.live  or  `mmdc -i architecture.mmd -o architecture.svg`
+flowchart TB
+    dev["Developer\n(git push)"] --> repo["Git repo\n(labs/git-collaboration)"]
+
+    %% ---- CI/CD: build, test, scan, deploy -------------------------------
+    subgraph cicd["CI/CD  (labs/cicd-pipelines)"]
+        ci["CI: lint - unit tests -\ndocker build - image scan"]
+        cd["CD: helm upgrade --install\n(deploy gate)"]
+        ci --> cd
+    end
+    repo --> ci
+
+    %% ---- Image registry ------------------------------------------------
+    cd -->|push image| ecr["Container registry\n(image: docker-containers)"]
+
+    %% ---- Infrastructure provisioned by Terraform ----------------------
+    subgraph infra["AWS infrastructure  (labs/terraform-aws-foundations)"]
+        vpc["VPC + tagged subnets\n(public / private)"]
+        eks["Kubernetes cluster\n(EKS / kind for local)"]
+        vpc --> eks
+    end
+
+    %% ---- Workload deployed via Helm onto Kubernetes -------------------
+    subgraph k8s["Kubernetes workload  (labs/kubernetes-fundamentals + labs/helm-charts)"]
+        deploy["Deployment\napp:8000  /healthz\nnon-root UID 10001"]
+        svc["Service (ClusterIP)"]
+        ing["Ingress"]
+        hpa["HPA\n(CPU target)"]
+        redis["Redis sidecar\n(stateful)"]
+        np["NetworkPolicy\n(default-deny)"]
+        deploy --> svc --> ing
+        hpa -. scales .-> deploy
+        deploy -->|"redis:6379"| redis
+        np -. guards .-> deploy
+    end
+    cd -->|helm upgrade| deploy
+    ecr -->|pull image| deploy
+    eks --> deploy
+
+    user["End user"] --> ing
+
+    %% ---- Observability -------------------------------------------------
+    subgraph obs["Observability  (labs/observability)"]
+        prom["Prometheus\nscrape /metrics\nRED rules"]
+        alerts["Alerting rules\nmulti-burn-rate SLO"]
+        graf["Grafana\nservice-overview dashboard"]
+        prom --> alerts
+        prom --> graf
+    end
+    deploy -->|"/metrics"| prom
+
+    %% ---- SRE / operate -------------------------------------------------
+    subgraph sre["SRE / operate  (labs/sre-incident-response)"]
+        slo["SLO + error budget\n(error_budget.py)"]
+        am["Alertmanager -> on-call"]
+        rb["Runbook +\nincident response"]
+        slo --> am --> rb
+    end
+    alerts -->|page| am
+    prom -->|burn rate| slo
+
+    classDef infra fill:#eef6ff,stroke:#3b82f6;
+    classDef sec fill:#e6ffe6,stroke:#2a7;
+    class vpc,eks infra;
+    class np,redis sec;

@@ -1,0 +1,89 @@
+# ============================ BROKEN FIXTURE ===============================
+# Week-12 troubleshooting lab #1: a pod that is OOMKilled in a crash loop.
+#
+# WHAT'S WRONG: the memory LIMIT is set far too low (12Mi). The Python
+# interpreter starts but its working set exceeds 12Mi almost immediately, so the
+# kernel cgroup memory controller kills it. Kubernetes reports the container's
+# lastState.terminated.reason as "OOMKilled" (Exit Code 137) and the pod enters
+# CrashLoopBackOff.
+#
+# WHY 12Mi (not 4Mi): the limit must be low enough that the *running* process
+# is OOMKilled, but high enough that the OCI runtime's own `init` can still
+# start the container. At ~<=8Mi the limit is so low that runc init itself is
+# OOM-killed BEFORE the app runs, which surfaces as reason "StartError" /
+# Exit Code 128 ("container init was OOM-killed") rather than the runtime
+# "OOMKilled" / Exit Code 137 we want students to diagnose. 12Mi was verified
+# on a live kind cluster (v1.31) to reliably produce OOMKilled / exit 137.
+#
+# SYMPTOM (what the learner observes):
+#   kubectl -n web get pods
+#     web-oom-...  0/1  CrashLoopBackOff  5  (113s ago)
+#   kubectl -n web describe pod web-oom-...
+#     Last State: Terminated
+#       Reason:   OOMKilled
+#       Exit Code: 137
+#
+# CAUSE: memory limit (12Mi) is below the process's real working set. 137 = 128
+#   + 9 means the process was killed by SIGKILL (signal 9) — here, the OOM
+#   killer, because it crossed its cgroup memory limit.
+#
+# FIX: raise the memory limit to a realistic value (the base uses 128Mi) and
+#   keep request <= limit. Then the container runs and stays Ready.
+#       limits.memory: 12Mi   ->   limits.memory: 128Mi
+#
+# NOTE: this manifest is structurally valid and applies cleanly (dry-run
+# passes). The failure only manifests at RUNTIME on a real cluster — that is the
+# point of the exercise.
+# ===========================================================================
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: web-oom
+  namespace: web
+  labels:
+    app.kubernetes.io/name: web-oom
+    lab: troubleshooting-oomkilled
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: web-oom
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: web-oom
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        runAsGroup: 10001
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: web
+          image: docker-containers-demo:1.0.0
+          ports:
+            - name: http
+              containerPort: 8000
+          resources:
+            requests:
+              cpu: 50m
+              memory: 12Mi
+            limits:
+              cpu: 250m
+              # BUG: 12Mi is far below what the runtime needs -> OOMKilled
+              # (Reason: OOMKilled, Exit Code: 137). See header for why not 4Mi.
+              memory: 12Mi
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: tmp
+          emptyDir:
+            sizeLimit: 16Mi

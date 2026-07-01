@@ -1,0 +1,3 @@
+# The runtime app is stdlib-only — there is NO requirements.txt for production.
+# These are developer/CI tools only.
+ruff==0.8.4

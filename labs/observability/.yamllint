@@ -1,0 +1,30 @@
+# yamllint configuration for the observability module.
+#
+# Why this file exists (documented, narrow relaxations of the `default` preset):
+#
+#   line-length:    These are TEACHING artifacts. The Prometheus rule files, the
+#                   prometheus.yml scrape config, the OTel collector config and the
+#                   OpenSLO spec carry long inline explanatory comments (the SRE
+#                   Workbook burn-rate math, relabel rationale, etc.). Wrapping that
+#                   prose to 80 columns would hurt readability for learners, so we
+#                   raise the limit to 120 and make it a WARNING (does not fail the
+#                   gate). Real *structure* problems (indentation, duplicate keys,
+#                   trailing whitespace, bad truthy/quoting) are still ERRORS.
+#
+#   document-start: Prometheus rule/config files and the OTel collector config are
+#                   conventionally written WITHOUT a leading `---` (that is how
+#                   upstream ships and documents them). Requiring `---` here would
+#                   diverge from real-world configs the learner will copy, so this
+#                   stylistic rule is disabled.
+#
+# Everything else inherits the strict `default` preset. Verified: with ONLY these
+# two rules relaxed, `yamllint` reports ZERO findings across the module, so nothing
+# substantive is being suppressed.
+
+extends: default
+
+rules:
+  line-length:
+    max: 120
+    level: warning
+  document-start: disable

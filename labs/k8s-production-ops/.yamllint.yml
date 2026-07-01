@@ -1,0 +1,25 @@
+# yamllint config for the k8s-production-ops lab manifests.
+#
+# Relaxed where the stock "default" preset flags valid, conventional Kubernetes
+# YAML, but KEEPS the structural checks that catch real bugs (indentation,
+# duplicate keys, trailing spaces).
+#   * These teaching manifests carry long explanatory comments -> line-length is
+#     a warning, raised to 120.
+#   * Starter manifests intentionally use `spec: {}` placeholders -> allow empty
+#     flow braces.
+#   * Not every manifest begins with `---` (single-doc files) -> document-start off.
+extends: default
+
+rules:
+  document-start: disable
+  line-length:
+    max: 120
+    level: warning
+  comments:
+    min-spaces-from-content: 1
+  comments-indentation: disable
+  truthy:
+    check-keys: false
+  braces:
+    min-spaces-inside: 0
+    max-spaces-inside: 0

@@ -1,0 +1,70 @@
+# Prometheus server config for the observability-stack lab.
+#
+# Validate: promtool check config prometheus/prometheus.yml
+#   (check config also loads + checks every file in rule_files.)
+#
+# Scope: this single Prometheus scrapes itself and the sample-api pods in the
+# lab-obs namespace via Kubernetes pod service-discovery. Pod SD is used (rather
+# than a static target) so that scaling sample-api to N replicas is picked up
+# automatically and each pod becomes its own `instance` -- exactly how a real
+# deployment behaves. The ServiceAccount it runs under has a namespaced Role
+# granting get/list/watch on pods (see k8s/prometheus-rbac.yaml).
+#
+# In the kind deploy the rule files are mounted from a ConfigMap at
+# /etc/prometheus/rules/; here the paths are relative so `promtool check config`
+# resolves them from this directory.
+
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  external_labels:
+    cluster: kind-course
+    env: lab
+
+# Load the RED recording rules and the burn-rate alerting rules.
+rule_files:
+  - rules/recording.rules.yml
+  - rules/alerting.rules.yml
+
+scrape_configs:
+  # ---- Prometheus scraping itself (liveness of the monitoring system) ----
+  - job_name: prometheus
+    static_configs:
+      - targets: ["localhost:9090"]
+
+  # ---- sample-api pods, discovered in the lab-obs namespace ----
+  # relabel_configs turn raw pod metadata into a clean target set:
+  #   * keep only pods annotated prometheus.io/scrape: "true";
+  #   * scrape the port named by prometheus.io/port (default 8000) at /metrics;
+  #   * set job="sample-api" so it matches the recording/alerting rules;
+  #   * expose pod name + node as labels for drill-down.
+  - job_name: sample-api
+    kubernetes_sd_configs:
+      - role: pod
+        namespaces:
+          names:
+            - lab-obs
+    relabel_configs:
+      - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_scrape]
+        action: keep
+        regex: "true"
+      - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_port]
+        action: replace
+        target_label: __tmp_port
+        regex: (.+)
+      # Rewrite the scrape address to pod_ip:annotated_port (default 8000).
+      - source_labels: [__address__, __tmp_port]
+        action: replace
+        regex: ([^:]+)(?::\d+)?;(\d+)
+        replacement: $1:$2
+        target_label: __address__
+      - source_labels: [__meta_kubernetes_pod_label_app]
+        action: replace
+        target_label: job
+        regex: (sample-api)
+      - source_labels: [__meta_kubernetes_pod_name]
+        action: replace
+        target_label: pod
+      - source_labels: [__meta_kubernetes_pod_node_name]
+        action: replace
+        target_label: node

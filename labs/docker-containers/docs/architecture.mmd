@@ -1,0 +1,15 @@
+flowchart LR
+    client[Client / curl] -->|GET /healthz, GET /| app
+
+    subgraph host[Docker host]
+        subgraph appnet["private bridge network: appnet"]
+            app["app container\npython:3.12-slim\nUID 10001 (non-root)\nHEALTHCHECK -> /healthz\nEXPOSE 8000"]
+            redis["redis container\nredis:7-alpine\nUID 999 (non-root)\nno published port"]
+            app -->|"redis:6379 (internal only)"| redis
+        end
+    end
+
+    app -. "published 127.0.0.1:8000 only" .-> client
+
+    classDef nonroot fill:#e6ffe6,stroke:#2a7;
+    class app,redis nonroot;

@@ -1,0 +1,20 @@
+# Stable in-cluster endpoint in front of the cpu-burner pods. ClusterIP is
+# enough: the k6 load generator reaches it via `kubectl port-forward svc/...`,
+# so we never expose it outside the cluster. As the HPA adds pods, kube-proxy
+# spreads /burn traffic across the new endpoints automatically.
+apiVersion: v1
+kind: Service
+metadata:
+  name: cpu-burner
+  labels:
+    app.kubernetes.io/name: cpu-burner
+    app.kubernetes.io/component: app
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: cpu-burner
+  ports:
+    - name: http
+      port: 80
+      targetPort: http
+      protocol: TCP

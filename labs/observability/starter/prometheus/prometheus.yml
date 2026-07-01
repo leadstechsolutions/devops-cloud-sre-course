@@ -1,0 +1,74 @@
+# Prometheus server configuration for the `checkout` service.
+# Loaded with:  prometheus --config.file=prometheus/prometheus.yml
+# Validate with: promtool check config prometheus/prometheus.yml
+#
+# This config scrapes Prometheus itself, the application (which exposes RED-method
+# metrics at /metrics), and the OpenTelemetry Collector's Prometheus exporter. It
+# loads the recording + alerting rule files and wires Alertmanager so the multi-burn
+# -rate SLO alerts in rules/alerting.rules.yml actually page.
+
+global:
+  scrape_interval: 15s       # default; the SLO math (alerting.rules.yml) assumes 15-60s
+  scrape_timeout: 10s
+  evaluation_interval: 15s   # how often recording/alerting rules are evaluated
+  external_labels:
+    # Stamped on every sample shipped to remote storage / Alertmanager so a global
+    # view can tell environments and replicas apart.
+    cluster: prod-us-east-1
+    environment: production
+
+# Rule files: recording rules precompute the RED series; alerting rules consume them.
+rule_files:
+  - rules/recording.rules.yml
+  - rules/alerting.rules.yml
+
+# Where firing alerts are sent. Service discovery resolves the Alertmanager replicas.
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets:
+            - alertmanager.monitoring.svc:9093
+
+scrape_configs:
+  # 1) Prometheus scrapes itself so you can monitor the monitor.
+  - job_name: prometheus
+    static_configs:
+      - targets: ["localhost:9090"]
+
+  # 2) The application under test. In a real cluster this is kubernetes_sd_configs;
+  #    static_configs keeps the lab runnable without a cluster. The service is expected
+  #    to expose RED counters/histograms (see queries/red-method.promql):
+  #      - http_requests_total{job,method,route,status_code}
+  #      - http_request_duration_seconds_bucket{job,le,route}
+  - job_name: checkout
+    metrics_path: /metrics
+    scheme: http
+    static_configs:
+      - targets:
+          - checkout-0.checkout.default.svc:8080
+          - checkout-1.checkout.default.svc:8080
+        labels:
+          service: checkout
+    relabel_configs:
+      # Preserve the pod/instance host as `instance` but expose a friendlier `pod`.
+      - source_labels: [__address__]
+        regex: "([^.]+)\\..*"
+        target_label: pod
+        replacement: "$1"
+    metric_relabel_configs:
+      # Drop Go runtime histograms we never alert on — they are high-cardinality noise.
+      - source_labels: [__name__]
+        regex: "go_gc_duration_seconds.*"
+        action: drop
+
+  # 3) The OpenTelemetry Collector exposes its own Prometheus exporter (see
+  #    otel/otel-collector-config.yaml -> exporters.prometheus on :8889). Scraping it
+  #    pulls in any OTLP metrics the collector has translated to Prometheus format.
+  - job_name: otel-collector
+    metrics_path: /metrics
+    static_configs:
+      - targets:
+          - otel-collector.monitoring.svc:8889   # prometheus exporter
+          - otel-collector.monitoring.svc:8888   # collector's own internal telemetry
+        labels:
+          service: otel-collector

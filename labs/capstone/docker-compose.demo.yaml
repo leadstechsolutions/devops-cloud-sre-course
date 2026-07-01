@@ -1,0 +1,153 @@
+# Capstone local demo stack.
+#
+# Purpose: bring up the SAME application image you ship to Kubernetes, plus the
+# Redis sidecar and an OPTIONAL Prometheus, on a single laptop so the whole
+# system is demoable end-to-end without a cloud account or a cluster.
+#
+# This file does NOT re-implement anything. It REUSES:
+#   - the hardened app image from   labs/docker-containers   (build context below)
+#   - the same /healthz contract the Kubernetes probes use (labs/kubernetes-fundamentals)
+#   - a Prometheus that mirrors the scrape model from labs/observability
+#
+# Run it (from THIS directory, labs/capstone):
+#   docker compose -f docker-compose.demo.yaml up --build            # app + redis
+#   docker compose -f docker-compose.demo.yaml --profile metrics up --build   # + prometheus
+#
+# Smoke test once it is up:
+#   curl -fsS http://127.0.0.1:8000/healthz      # -> {"status": "ok"}
+#   curl -fsS http://127.0.0.1:8000/             # -> {"hostname","service","port"}
+#   open  http://127.0.0.1:9090/targets          # (metrics profile) Prometheus targets
+#
+# Tear it down (removes containers + the named network + volumes):
+#   docker compose -f docker-compose.demo.yaml --profile metrics down -v
+
+name: capstone-demo
+
+services:
+  # ---------------------------------------------------------------------------
+  # app — the production application image, built from the docker-containers
+  # module so the capstone ships the SAME artifact, not a fork. The build
+  # context points at that module; its Dockerfile does `COPY app/ ...`.
+  # ---------------------------------------------------------------------------
+  app:
+    build:
+      context: ../docker-containers
+      dockerfile: solution/Dockerfile
+    image: capstone-app:demo
+    environment:
+      PORT: "8000"
+      # The stdlib app treats Redis as a sidecar (wiring demonstrated here so the
+      # k8s/helm env contract matches); these mirror the ConfigMap in
+      # labs/kubernetes-fundamentals/solution/base/configmap.yaml.
+      REDIS_HOST: redis
+      REDIS_PORT: "6379"
+    ports:
+      # Publish ONLY on localhost — never 0.0.0.0 on a shared/dev box.
+      - "127.0.0.1:8000:8000"
+    networks:
+      - appnet
+    depends_on:
+      redis:
+        condition: service_healthy
+    # Restate the non-root identity at the orchestration layer (the image already
+    # drops to UID 10001) so intent survives an image change.
+    user: "10001:10001"
+    read_only: true
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    healthcheck:
+      # stdlib probe baked into the image — no curl/wget present, by design.
+      test: ["CMD", "python", "/app/healthcheck.py"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 5s
+    deploy:
+      resources:
+        limits:
+          cpus: "0.50"
+          memory: 128M
+        reservations:
+          cpus: "0.10"
+          memory: 32M
+    restart: unless-stopped
+
+  # ---------------------------------------------------------------------------
+  # redis — stateful sidecar. No published port: only `app` reaches it over the
+  # private bridge network. Mirrors the sidecar pattern from docker-containers.
+  # ---------------------------------------------------------------------------
+  redis:
+    image: redis:7-alpine
+    user: "999:999"                       # redis user shipped in the alpine image
+    command: ["redis-server", "--save", "", "--appendonly", "no"]
+    networks:
+      - appnet
+    read_only: true
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    tmpfs:
+      - /tmp                              # redis needs a writable temp dir
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 3s
+    deploy:
+      resources:
+        limits:
+          cpus: "0.25"
+          memory: 64M
+        reservations:
+          cpus: "0.05"
+          memory: 16M
+    restart: unless-stopped
+
+  # ---------------------------------------------------------------------------
+  # prometheus — OPTIONAL. Behind the `metrics` profile so the default
+  # `up` stays lightweight. Brings the observability story into the local demo:
+  # it scrapes itself and the app's health endpoint via blackbox-style targets.
+  # Full RED-method rules + Grafana live in labs/observability; this is the
+  # minimal scrape so the demo shows "metrics flowing", not a full stack.
+  # ---------------------------------------------------------------------------
+  prometheus:
+    image: prom/prometheus:v2.53.0
+    profiles: ["metrics"]
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.retention.time=1h"      # demo: keep TSDB tiny
+      - "--web.enable-lifecycle"
+    volumes:
+      # Read-only bind of the demo scrape config checked in beside this file.
+      - ./prometheus/prometheus.demo.yml:/etc/prometheus/prometheus.yml:ro
+    ports:
+      - "127.0.0.1:9090:9090"
+    networks:
+      - appnet
+    depends_on:
+      app:
+        condition: service_healthy
+    read_only: true
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    tmpfs:
+      - /prometheus                            # TSDB scratch (read_only root fs)
+    deploy:
+      resources:
+        limits:
+          cpus: "0.50"
+          memory: 256M
+        reservations:
+          cpus: "0.10"
+          memory: 64M
+    restart: unless-stopped
+
+networks:
+  appnet:
+    driver: bridge

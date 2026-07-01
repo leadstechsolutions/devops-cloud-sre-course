@@ -1,0 +1,85 @@
+# RED recording rules for the `sample-api` service.
+#
+# Validate: promtool check rules prometheus/rules/recording.rules.yml
+#
+# RED = Rate, Errors, Duration. These rules precompute the three RED signals
+# from the raw app metrics so that BOTH the burn-rate alerts and the Grafana
+# dashboard read from one canonical definition (recording rules are the single
+# source of truth -- you never want the alert and the graph to disagree about
+# what "error rate" means).
+#
+# Naming convention (Prometheus recording-rule style): level:metric:operation
+#   job:http_requests:rate5m                 -> total request rate  (R)
+#   job:http_requests_errors:rate5m          -> 5xx error rate       (E, numerator)
+#   job:http_requests_error_ratio:rate5m     -> error RATIO 0..1     (E, the SLI)
+#   job:http_request_duration_seconds:p99    -> p99 latency seconds  (D)
+#
+# Error-ratio windows (5m/30m/1h/6h) exist because the multi-window burn-rate
+# alert in alerting.rules.yml compares a short and a long window. Each window is
+# its own recording rule so promtool can unit-test them deterministically.
+#
+# IMPORTANT: status is a STRING label on http_requests_total, so the 5xx match
+# uses =~"5.." (regex), not a numeric comparison.
+
+groups:
+  - name: sample-api-red-rate
+    interval: 15s
+    rules:
+      # ---- R: total request rate (per second), summed across paths/status ----
+      - record: job:http_requests:rate5m
+        expr: sum by (job) (rate(http_requests_total{job="sample-api"}[5m]))
+
+      # ---- E numerator: 5xx error rate (per second) ----
+      - record: job:http_requests_errors:rate5m
+        expr: sum by (job) (rate(http_requests_total{job="sample-api", status=~"5.."}[5m]))
+
+  - name: sample-api-red-error-ratio
+    interval: 15s
+    rules:
+      # ---- E: error RATIO (0..1) over each window the burn-rate alert needs ----
+      # Guard against divide-by-zero with `> 0` on the denominator via `or vector(0)`
+      # is unnecessary here because we only alert when traffic exists; an empty
+      # result for a window with no traffic simply means "no alert", which is correct.
+      - record: job:http_requests_error_ratio:rate5m
+        expr: |
+          sum by (job) (rate(http_requests_total{job="sample-api", status=~"5.."}[5m]))
+          /
+          sum by (job) (rate(http_requests_total{job="sample-api"}[5m]))
+
+      - record: job:http_requests_error_ratio:rate30m
+        expr: |
+          sum by (job) (rate(http_requests_total{job="sample-api", status=~"5.."}[30m]))
+          /
+          sum by (job) (rate(http_requests_total{job="sample-api"}[30m]))
+
+      - record: job:http_requests_error_ratio:rate1h
+        expr: |
+          sum by (job) (rate(http_requests_total{job="sample-api", status=~"5.."}[1h]))
+          /
+          sum by (job) (rate(http_requests_total{job="sample-api"}[1h]))
+
+      - record: job:http_requests_error_ratio:rate6h
+        expr: |
+          sum by (job) (rate(http_requests_total{job="sample-api", status=~"5.."}[6h]))
+          /
+          sum by (job) (rate(http_requests_total{job="sample-api"}[6h]))
+
+  - name: sample-api-red-duration
+    interval: 15s
+    rules:
+      # ---- D: p99 and p50 request latency from the histogram buckets ----
+      # histogram_quantile over the per-le bucket rate. `by (le, job)` keeps the
+      # le dimension (required by histogram_quantile) and collapses path/method.
+      - record: job:http_request_duration_seconds:p99
+        expr: |
+          histogram_quantile(
+            0.99,
+            sum by (le, job) (rate(http_request_duration_seconds_bucket{job="sample-api"}[5m]))
+          )
+
+      - record: job:http_request_duration_seconds:p50
+        expr: |
+          histogram_quantile(
+            0.50,
+            sum by (le, job) (rate(http_request_duration_seconds_bucket{job="sample-api"}[5m]))
+          )

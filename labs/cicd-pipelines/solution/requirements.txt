@@ -1,0 +1,3 @@
+# Runtime dependencies only. Kept minimal so the SCA (pip-audit) surface is
+# small and the Week 10 container image stays slim. pip-audit scans THIS file.
+flask==3.1.0

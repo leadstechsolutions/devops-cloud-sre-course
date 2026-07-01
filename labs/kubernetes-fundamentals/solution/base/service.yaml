@@ -1,0 +1,24 @@
+# Stable in-cluster address for the pods. A ClusterIP Service load-balances
+# across the ready endpoints selected by the label below — pods come and go,
+# the Service name (web.web.svc.cluster.local) stays put.
+#
+# Only pods that pass the readinessProbe are added to this Service's endpoints,
+# which is how rolling updates avoid sending traffic to not-yet-ready pods.
+apiVersion: v1
+kind: Service
+metadata:
+  name: web
+  labels:
+    app.kubernetes.io/name: web
+    app.kubernetes.io/component: app
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: web
+  ports:
+    - name: http
+      port: 80
+      # Named target port resolves to the container's `http` port (8000),
+      # so renumbering the container doesn't require editing the Service.
+      targetPort: http
+      protocol: TCP

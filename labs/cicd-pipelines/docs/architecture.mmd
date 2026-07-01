@@ -1,0 +1,24 @@
+flowchart LR
+    subgraph CI["ci.yml — PRIMARY (Week 9), on pull_request / push to main"]
+        LTB[lint-test-build<br/>ruff -> pytest -> tarball artifact<br/>app-SHA.tar.gz]
+        SEC[security<br/>gitleaks secret scan<br/>+ pip-audit SCA<br/>fail on finding = HARD GATE]
+    end
+
+    SEC -- "check required by<br/>branch protection" --> MERGE{merge to main?}
+    LTB --> MERGE
+    MERGE -- "security red" --> BLOCKED[blocked]
+    MERGE -- "all green" --> MAIN[(main)]
+
+    MAIN -- "tag vX.Y.Z" --> CD
+
+    subgraph CD["cd.yml — on push tag v*"]
+        OIDC[configure-aws-credentials<br/>OIDC role-to-assume<br/>no static keys] --> PUSH[build + push to ECR]
+        PUSH --> ENV[environment: production<br/>required reviewers]
+        ENV --> DEPLOY[ecs update-service<br/>+ wait stable]
+    end
+
+    subgraph ADV["ci-advanced.yml — ADVANCED variant (Week 19 depth)"]
+        AL[lint<br/>ruff + hadolint] --> AT[test<br/>pytest]
+        AT --> AB[build<br/>docker build]
+        AB --> AS[scan<br/>Trivy HIGH/CRITICAL<br/>exit-code 1 = HARD GATE]
+    end

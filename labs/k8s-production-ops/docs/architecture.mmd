@@ -1,0 +1,28 @@
+%% k8s-production-ops — what each drill exercises.
+flowchart TB
+  subgraph course["kind-course (kindnet CNI) — drills 1-3, unique ns per run"]
+    direction TB
+    dep["Deployment cpu-burner<br/>3 replicas, maxUnavailable:0"]
+    svc["Service cpu-burner (ClusterIP)"]
+    pdb["PodDisruptionBudget<br/>minAvailable: 2"]
+    quota["ResourceQuota + LimitRange"]
+    dep --> svc
+    pdb -. guards .-> dep
+    quota -. admits/rejects .-> pods["new Pods"]
+  end
+
+  subgraph netpol["kind netpol (Calico CNI, throwaway) — drill 4"]
+    direction TB
+    client["Pod app=client (curl)"]
+    server["Pod app=server (cpu-burner :8000)"]
+    deny["NetworkPolicy default-deny-ingress"]
+    allow["NetworkPolicy allow client->server :8000"]
+    client -->|"A: ALLOW / B: DENY / C: ALLOW"| server
+    deny -. blocks all ingress .-> server
+    allow -. re-opens one flow .-> server
+  end
+
+  d1["Drill 1: bad image -> stuck rollout -> undo"] --> dep
+  d2["Drill 2: eviction API vs direct delete"] --> pdb
+  d3["Drill 3: over-quota REJECT / compliant ADMIT"] --> quota
+  d4["Drill 4: prove NetworkPolicy enforcement"] --> netpol

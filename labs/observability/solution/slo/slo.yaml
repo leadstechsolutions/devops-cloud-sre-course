@@ -1,0 +1,87 @@
+# OpenSLO v1 specification for the checkout service availability SLO.
+# Spec: https://github.com/OpenSLO/OpenSLO  (apiVersion openslo/v1)
+# Validate with: oslo validate -f slo/slo.yaml   (DEFERRED — see README)
+#
+# This is the SINGLE SOURCE OF TRUTH for the 99.9% availability objective. The
+# Prometheus alerting rules (rules/alerting.rules.yml) implement the burn-rate alerting
+# that protects exactly this objective and budget; keep the numbers in sync.
+#
+# 99.9% over a rolling 30-day window  =>  error budget = 0.1% of valid requests.
+
+apiVersion: openslo/v1
+kind: SLO
+metadata:
+  name: checkout-availability
+  displayName: Checkout Availability
+  labels:
+    team: checkout
+    tier: critical
+spec:
+  description: >-
+    99.9% of HTTP requests to the checkout service should succeed (non-5xx) over a
+    rolling 30-day window. Burn-rate alerts page on fast budget consumption.
+  service: checkout
+  budgetingMethod: Occurrences   # ratio of good to total events (vs. Timeslices)
+  # The SLI is a ratio metric: good events (non-5xx) over total events.
+  indicator:
+    metadata:
+      name: checkout-success-ratio
+    spec:
+      ratioMetric:
+        counter: true
+        total:
+          metricSource:
+            type: Prometheus
+            spec:
+              query: |
+                sum(rate(http_requests_total{job="checkout"}[1m]))
+        good:
+          metricSource:
+            type: Prometheus
+            spec:
+              query: |
+                sum(rate(http_requests_total{job="checkout", status_code!~"5.."}[1m]))
+  timeWindow:
+    - duration: 30d
+      isRolling: true
+  objectives:
+    - displayName: 99.9% successful requests
+      target: 0.999   # => error budget 0.001 (0.1%); matches alerting.rules.yml math
+---
+# The corresponding Alert Policy, referencing the burn-rate alert conditions. This ties
+# the OpenSLO model to the two Prometheus alerts so a tool that consumes OpenSLO can
+# generate (or reconcile) the same multi-burn-rate rules.
+apiVersion: openslo/v1
+kind: AlertPolicy
+metadata:
+  name: checkout-availability-burn-rate
+spec:
+  description: Multi-window multi-burn-rate alerting for the checkout availability SLO.
+  alertWhenBreaching: true
+  conditions:
+    - kind: AlertCondition
+      metadata:
+        name: fast-burn-14-4x
+      spec:
+        description: Page on fast error-budget burn (14.4x over 1h, confirmed by 5m).
+        severity: page
+        condition:
+          kind: burnrate
+          op: gt
+          threshold: 14.4
+          lookbackWindow: 1h
+          alertAfter: 5m
+    - kind: AlertCondition
+      metadata:
+        name: slow-burn-6x
+      spec:
+        description: Ticket on slow error-budget burn (6x over 6h, confirmed by 30m).
+        severity: ticket
+        condition:
+          kind: burnrate
+          op: gt
+          threshold: 6
+          lookbackWindow: 6h
+          alertAfter: 30m
+  notificationTargets:
+    - targetRef: oncall-pagerduty

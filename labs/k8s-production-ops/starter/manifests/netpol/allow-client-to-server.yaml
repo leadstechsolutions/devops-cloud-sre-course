@@ -1,0 +1,22 @@
+# STARTER — TODO: write an allow NetworkPolicy that re-opens ONLY the flow you
+# need after the default-deny is in place.
+#
+# Goal: pods labelled app=server accept ingress on TCP port 8000 ONLY from pods
+# labelled app=client. Everything else stays denied.
+#
+# Acceptance (see ../../../solution/manifests/netpol/allow-client-to-server.yaml
+# and drills/networkpolicy.sh): on a Calico cluster, after the default-deny AND
+# this policy are applied, the client->server curl SUCCEEDS again (curl exit 0,
+# HTTP 200), while traffic from any other source remains blocked.
+#
+# Hints:
+#   - podSelector here scopes the policy to the SERVER pods (the destination).
+#   - ingress.from.podSelector scopes the allowed SOURCE to the client pods.
+#   - Pin the port (TCP/8000) so you allow only the intended service port.
+#
+# TODO: complete the spec.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-client-to-server
+spec: {}  # TODO: select app=server pods; allow ingress on TCP/8000 from app=client

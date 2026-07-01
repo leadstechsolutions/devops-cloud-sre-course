@@ -1,0 +1,13 @@
+# Keep the build context tiny and the image clean.
+.git
+.github
+**/__pycache__
+**/*.pyc
+**/.pytest_cache
+tests
+chart
+k8s
+docs
+*.md
+.gitignore
+.dockerignore

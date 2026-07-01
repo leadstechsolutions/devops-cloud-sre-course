@@ -1,0 +1,7 @@
+# Dev/CI tooling: pulls in the runtime deps, then the lint + test + SCA tools.
+# Installed in the lint-test-build job; pip-audit is also installed standalone
+# in the security job so the SCA gate does not depend on the dev extras.
+-r requirements.txt
+pytest==8.3.4
+ruff==0.8.4
+pip-audit==2.7.3

@@ -1,0 +1,7 @@
+__pycache__/
+*.pyc
+.pytest_cache/
+# k6 / load-test output artifacts
+load/result.json
+load/*.html
+load/summary.json

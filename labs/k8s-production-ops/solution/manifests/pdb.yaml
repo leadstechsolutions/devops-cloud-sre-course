@@ -1,0 +1,26 @@
+# PodDisruptionBudget for the cpu-burner Deployment (3 replicas).
+#
+# minAvailable: 2 means *voluntary* disruptions (node drain, `kubectl drain`,
+# cluster-autoscaler scale-down, a rollout that respects the budget) may never
+# take the number of Ready, matching pods below 2. The eviction API enforces it:
+# an eviction that would drop Ready pods under 2 is REJECTED with HTTP 429
+# "Cannot evict pod as it would violate the disruption budget".
+#
+# ALLOWED DISRUPTIONS (visible in `kubectl get pdb`) = currentHealthy - minAvailable
+# (clamped at >=0). With 3 healthy and minAvailable 2, ALLOWED DISRUPTIONS = 1.
+#
+# IMPORTANT: a PDB only guards VOLUNTARY disruptions routed through the eviction
+# API. A direct `kubectl delete pod` is an INVOLUNTARY disruption and bypasses the
+# budget entirely — the pdb-drain drill demonstrates exactly this distinction.
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: cpu-burner
+  labels:
+    app.kubernetes.io/name: cpu-burner
+    app.kubernetes.io/part-of: k8s-production-ops
+spec:
+  minAvailable: 2
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: cpu-burner

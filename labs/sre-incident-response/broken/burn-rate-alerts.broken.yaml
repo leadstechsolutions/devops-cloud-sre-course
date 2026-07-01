@@ -1,0 +1,58 @@
+# BROKEN FIXTURE for the troubleshooting exercise. Do NOT deploy this.
+#
+# This is slo/burn-rate-alerts.yaml with TWO real, reproducible defects injected.
+# The YAML still PARSES (so a naive `yaml parse` gate passes) and promtool would
+# accept the syntax — but the alerts are operationally wrong: the page will never
+# fire when it should. Your job (see README "Troubleshooting") is to find and fix
+# both defects and explain how you'd catch them in CI / unit tests.
+#
+# Hints live in README. The corrected file is slo/burn-rate-alerts.yaml.
+---
+groups:
+  - name: payments-api-slo-error-ratios
+    interval: 30s
+    rules:
+      - record: job:slo_errors_per_request:ratio_rate5m
+        expr: |
+          sum(rate(http_requests_total{job="payments-api", code=~"5.."}[5m]))
+          /
+          sum(rate(http_requests_total{job="payments-api"}[5m]))
+      - record: job:slo_errors_per_request:ratio_rate1h
+        expr: |
+          sum(rate(http_requests_total{job="payments-api", code=~"5.."}[1h]))
+          /
+          sum(rate(http_requests_total{job="payments-api"}[1h]))
+
+  - name: payments-api-slo-burn-rate
+    rules:
+      # DEFECT 1: threshold is the burn MULTIPLE (14.4) instead of the error RATIO
+      # (14.4 * 0.001 = 0.0144). An error ratio is in [0,1], so it can NEVER exceed
+      # 14.4 -> this page never fires. The budget can be fully burned with no alert.
+      - alert: PaymentsAPIErrorBudgetFastBurn
+        expr: |
+          job:slo_errors_per_request:ratio_rate1h > 14.4
+          and
+          job:slo_errors_per_request:ratio_rate5m > 14.4
+        for: 2m
+        labels:
+          severity: page
+          slo: payments-api-availability
+        annotations:
+          summary: "payments-api burning error budget 14.4x (1h+5m)"
+          runbook_url: "runbooks/high-error-rate.md"
+
+      # DEFECT 2: this rule references a recording rule that does NOT exist
+      # (ratio_rate30m is never recorded in the group above). The expression
+      # evaluates to no data, so this alert is silently dead.
+      - alert: PaymentsAPIErrorBudgetFastBurn
+        expr: |
+          job:slo_errors_per_request:ratio_rate6h > (6 * 0.001)
+          and
+          job:slo_errors_per_request:ratio_rate30m > (6 * 0.001)
+        for: 5m
+        labels:
+          severity: page
+          slo: payments-api-availability
+        annotations:
+          summary: "payments-api burning error budget 6x (6h+30m)"
+          runbook_url: "runbooks/high-error-rate.md"

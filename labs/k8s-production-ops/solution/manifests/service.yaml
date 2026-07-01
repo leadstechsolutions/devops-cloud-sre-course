@@ -1,0 +1,19 @@
+# ClusterIP Service fronting the cpu-burner pods. Selector matches the Deployment
+# pod labels. Only Ready pods get endpoints, so during a stuck rollout the Service
+# keeps routing to the healthy v1 pods.
+apiVersion: v1
+kind: Service
+metadata:
+  name: cpu-burner
+  labels:
+    app.kubernetes.io/name: cpu-burner
+    app.kubernetes.io/part-of: k8s-production-ops
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: cpu-burner
+  ports:
+    - name: http
+      port: 80
+      targetPort: http
+      protocol: TCP

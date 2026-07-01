@@ -1,0 +1,22 @@
+flowchart LR
+    k6["k6 load generator\n(ramping VUs, /burn)"]
+    pf["kubectl port-forward\nlocalhost:18080 -> svc:80"]
+    subgraph cluster["kind cluster (ns: lab-perf)"]
+        svc["Service cpu-burner\n(ClusterIP :80 -> :8000)"]
+        subgraph pods["cpu-burner pods (1..5)"]
+            p1["pod 1\n/burn pins a CPU thread"]
+            p2["pod 2"]
+            pN["pod N"]
+        end
+        hpa["HorizontalPodAutoscaler\nCPU 50% of request\nmin 1 / max 5"]
+        dep["Deployment cpu-burner\nrequest cpu=100m"]
+    end
+    subgraph ksys["kube-system"]
+        ms["metrics-server\n(--kubelet-insecure-tls)"]
+    end
+
+    k6 --> pf --> svc --> p1 & p2 & pN
+    ms -- "scrapes kubelet CPU" --> pods
+    hpa -- "reads CPU util via metrics API" --> ms
+    hpa -- "scales replicas" --> dep
+    dep -- "manages" --> pods

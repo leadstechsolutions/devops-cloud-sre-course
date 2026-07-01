@@ -1,0 +1,94 @@
+# Compose stack: the hardened app + a Redis sidecar.
+#
+# Run from the MODULE ROOT so the build context includes ./app:
+#     docker compose -f solution/compose.yaml up --build
+#
+# Design choices demonstrated here:
+#   - explicit user (non-root) for both services
+#   - per-service healthchecks; app waits for redis to be healthy
+#   - a private bridge network (NO network_mode: host)
+#   - resource limits (CPU + memory) via deploy.resources
+#   - read-only root filesystem + dropped Linux capabilities (defense in depth)
+#   - no published Redis port (internal-only; only the app port is exposed)
+
+name: docker-containers-lab
+
+services:
+  app:
+    build:
+      # Context is the module root (one level up from this file) so that the
+      # Dockerfile's `COPY app/ ...` resolves.
+      context: ..
+      dockerfile: solution/Dockerfile
+    image: dc-test:latest
+    environment:
+      PORT: "8000"
+      REDIS_HOST: redis
+      REDIS_PORT: "6379"
+    ports:
+      # host:container — publish only the app, and only on localhost.
+      - "127.0.0.1:8000:8000"
+    networks:
+      - appnet
+    depends_on:
+      redis:
+        condition: service_healthy
+    # The image already drops to UID 10001; restate here so the intent is
+    # visible at the orchestration layer and survives image changes.
+    user: "10001:10001"
+    read_only: true
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    healthcheck:
+      test: ["CMD", "python", "/app/healthcheck.py"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 5s
+    deploy:
+      resources:
+        limits:
+          cpus: "0.50"
+          memory: 128M
+        reservations:
+          cpus: "0.10"
+          memory: 32M
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    # Redis ships its own non-root `redis` user (UID 999) in the alpine image.
+    user: "999:999"
+    command: ["redis-server", "--save", "", "--appendonly", "no"]
+    networks:
+      - appnet
+    # No `ports:` — Redis is reachable only by the app over the private network.
+    read_only: true
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    tmpfs:
+      # redis-server needs a writable temp dir even with persistence disabled.
+      - /tmp
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 3s
+    deploy:
+      resources:
+        limits:
+          cpus: "0.25"
+          memory: 64M
+        reservations:
+          cpus: "0.05"
+          memory: 16M
+    restart: unless-stopped
+
+networks:
+  appnet:
+    driver: bridge

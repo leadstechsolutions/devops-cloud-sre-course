@@ -1,0 +1,34 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: payments-web-config-v1
+  namespace: lab-incident
+  labels:
+    app: payments-web
+    config-version: v1
+data:
+  # The HEALTHY config. /healthz returns 200 so the readiness probe passes and
+  # the pod joins the Service endpoints. This is the "last known good" version
+  # the drill rolls back to.
+  default.conf: |
+    server {
+        listen 8080;
+        server_name _;
+
+        # Liveness/readiness endpoint: healthy version answers 200.
+        location = /healthz {
+            add_header Content-Type text/plain;
+            return 200 'ok: payments-web v1 healthy\n';
+        }
+
+        # Business endpoint stands in for the payments-api surface.
+        location = /v1/authorize {
+            add_header Content-Type application/json;
+            return 200 '{"approved": true, "version": "v1"}\n';
+        }
+
+        location / {
+            add_header Content-Type text/plain;
+            return 200 'payments-web v1\n';
+        }
+    }

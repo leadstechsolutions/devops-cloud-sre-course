@@ -1,0 +1,23 @@
+WS-W4 LIVE READ-ONLY VALIDATION — labs/aws-cli-fundamentals (account 071146695791, $0) · 2026-06-30T15:10Z
+==============================================================================
+--- ./whoami.sh ---
+  Account : 071146695791
+  ARN     : arn:aws:iam::071146695791:user/jay-m2
+  UserId  : AIDARBEFMNRXSDAIQH3JG
+  Name    : jay-m2
+  Profile : sandbox
+  Region  : us-east-1
+--- ./regions.sh (head) ---
+  REGION              OPT-IN-STATUS           ENDPOINT
+  ap-northeast-1      opt-in-not-required     ec2.ap-northeast-1.amazonaws.com
+  ap-northeast-2      opt-in-not-required     ec2.ap-northeast-2.amazonaws.com
+--- ./cost-guard.sh ---
+  == cost-guard scan (region: us-east-1) ==
+  -- running EC2 instances
+    (none)
+  -- NAT gateways (available)
+    (none)
+  -- Elastic IPs (idle / unassociated)
+    (none)
+  -- EBS volumes (available / detached)
+All scripts are READ-ONLY (no create/delete/put/modify verbs); total cost $0.

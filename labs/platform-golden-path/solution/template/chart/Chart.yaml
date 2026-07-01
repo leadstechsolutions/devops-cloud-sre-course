@@ -1,0 +1,25 @@
+apiVersion: v2
+name: __SERVICE_NAME__
+description: Production-shaped Helm chart for the __SERVICE_NAME__ microservice (golden path).
+type: application
+
+# Chart version (SemVer 2). Bump on any change to the chart itself.
+version: 0.1.0
+
+# Version of the app image this chart deploys. Quoted so tags like "1.2" are
+# not parsed as floats.
+appVersion: "1.0.0"
+
+kubeVersion: ">=1.25.0-0"
+
+keywords:
+  - golden-path
+  - microservice
+  - http
+
+maintainers:
+  - name: Platform Engineering
+    email: platform@example.com
+
+sources:
+  - https://example.com/__SERVICE_NAME__

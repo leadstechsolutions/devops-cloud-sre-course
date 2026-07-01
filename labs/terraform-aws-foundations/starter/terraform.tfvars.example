@@ -1,0 +1,17 @@
+# Copy to terraform.tfvars and edit. terraform.tfvars is gitignored — never commit real values.
+
+project     = "tf-aws-foundations"
+environment = "dev"
+region      = "us-east-1"
+
+vpc_cidr = "10.0.0.0/16"
+az_count = 2
+
+# NAT gateway is OFF by default. It costs ~$32/mo plus per-GB data processing.
+# Turn it on only when private subnets need outbound internet egress.
+enable_nat_gateway = false
+
+tags = {
+  Owner     = "platform-team"
+  CostCenter = "1234"
+}

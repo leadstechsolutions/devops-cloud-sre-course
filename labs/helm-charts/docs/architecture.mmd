@@ -1,0 +1,37 @@
+flowchart TD
+    subgraph Chart["Helm chart: webapp"]
+        CY["Chart.yaml<br/>apiVersion v2"]
+        V["values.yaml<br/>+ values-prod.yaml override"]
+        H["templates/_helpers.tpl<br/>name / labels / image"]
+    end
+
+    V --> R{{"helm template / helm install<br/>(render)"}}
+    H --> R
+    CY --> R
+
+    subgraph Rendered["Rendered Kubernetes objects"]
+        SA["ServiceAccount"]
+        CM["ConfigMap<br/>(envFrom)"]
+        D["Deployment<br/>probes · resources · securityContext"]
+        S["Service ClusterIP :80 -> :8080"]
+        I["Ingress<br/>if ingress.enabled"]
+        HPA["HorizontalPodAutoscaler<br/>if autoscaling.enabled"]
+        T["templates/tests/test-connection<br/>helm test hook"]
+    end
+
+    R --> SA
+    R --> CM
+    R --> D
+    R --> S
+    R --> I
+    R --> HPA
+    R --> T
+
+    CM -. envFrom .-> D
+    SA -. serviceAccountName .-> D
+    S -. selector .-> D
+    I -. backend .-> S
+    HPA -. scaleTargetRef .-> D
+    T -. wget /  .-> S
+
+    Client["External client"] --> I

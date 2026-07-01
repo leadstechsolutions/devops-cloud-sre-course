@@ -1,0 +1,8 @@
+---
+# Handlers for the baseline role. Run once, at the end of the play, only if
+# notified by a changed task.
+- name: Restart chrony
+  ansible.builtin.service:
+    name: chrony
+    state: restarted
+  failed_when: false

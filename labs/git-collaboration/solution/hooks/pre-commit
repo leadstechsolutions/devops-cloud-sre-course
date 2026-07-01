@@ -1,0 +1,88 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# pre-commit
+# ---------------------------------------------------------------------------
+# Blocks a commit when the STAGED changes contain either:
+#   1. secret-like material (AWS access keys, AWS secret keys, private-key
+#      PEM headers, or generic "-----BEGIN ... -----" blocks), or
+#   2. a newly added/modified file larger than MAX_BYTES (default 5 MB).
+#
+# It inspects the STAGED content only (what `git commit` would record), never
+# the working tree, so unstaged scratch files do not cause false positives.
+#
+# Bypass (use sparingly, and never to commit a real secret):
+#   git commit --no-verify
+# ---------------------------------------------------------------------------
+
+MAX_BYTES=$(( 5 * 1024 * 1024 ))   # 5 MiB
+
+# Choose the right "empty tree" base so the hook also works on the very first
+# commit (no HEAD yet).
+if git rev-parse --verify -q HEAD >/dev/null; then
+  against=HEAD
+else
+  against="$(git hash-object -t tree /dev/null)"
+fi
+
+# List of files staged for this commit (Added/Copied/Modified/Renamed),
+# excluding deletions. NUL-delimited to survive spaces/newlines in names.
+mapfile -d '' -t staged < <(
+  git diff --cached --name-only --diff-filter=ACMR -z "$against"
+)
+
+if [[ ${#staged[@]} -eq 0 ]]; then
+  exit 0
+fi
+
+violations=0
+
+# ---- 1. Large-file check ---------------------------------------------------
+# Measure the STAGED blob size (what gets committed), not the working-tree file.
+for f in "${staged[@]}"; do
+  # ':<path>' addresses the staged (index) version of the file.
+  size=$(git cat-file -s ":$f" 2>/dev/null || echo 0)
+  if [[ "$size" -gt "$MAX_BYTES" ]]; then
+    printf 'BLOCKED: %s is %s bytes (> %s byte limit). Use Git LFS or do not commit it.\n' \
+      "$f" "$size" "$MAX_BYTES" >&2
+    violations=$((violations + 1))
+  fi
+done
+
+# ---- 2. Secret-pattern check ----------------------------------------------
+# Regexes (POSIX ERE, evaluated by `grep -E`):
+#   AKIA[0-9A-Z]{16}                     AWS access key id
+#   aws_secret_access_key ... 40-char    AWS secret access key assignment
+#   -----BEGIN ... PRIVATE KEY-----      PEM private key header
+#   -----BEGIN                           any other armored secret block
+secret_patterns=(
+  '(AKIA|ASIA)[0-9A-Z]{16}'
+  'aws_secret_access_key[[:space:]]*=[[:space:]]*[A-Za-z0-9/+=]{40}'
+  '-----BEGIN ([A-Z ]+ )?PRIVATE KEY-----'
+  '-----BEGIN '
+)
+
+# Build a single alternation so we scan each staged diff once.
+joined_patterns="$(IFS='|'; echo "${secret_patterns[*]}")"
+
+for f in "${staged[@]}"; do
+  # Scan the staged diff hunks (added lines) for this file. We grep the unified
+  # diff and keep only added lines ('+', but not the '+++' file header).
+  if git diff --cached --no-color -U0 "$against" -- "$f" \
+       | grep -E '^\+' \
+       | grep -Ev '^\+\+\+ ' \
+       | grep -Eq "$joined_patterns"; then
+    printf 'BLOCKED: %s contains secret-like content (AWS key / private key / BEGIN block).\n' \
+      "$f" >&2
+    printf '         Remove the secret, rotate it if it ever existed, and use a secrets manager.\n' >&2
+    violations=$((violations + 1))
+  fi
+done
+
+if [[ "$violations" -gt 0 ]]; then
+  printf '\npre-commit: %s problem(s) found. Commit aborted.\n' "$violations" >&2
+  printf 'To override (NOT for real secrets): git commit --no-verify\n' >&2
+  exit 1
+fi
+
+exit 0

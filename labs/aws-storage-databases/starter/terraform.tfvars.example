@@ -1,0 +1,20 @@
+# Copy to terraform.tfvars and adjust. terraform.tfvars is gitignored.
+
+project     = "aws-storage-db"
+environment = "dev"
+region      = "us-east-1"
+
+# Storage-only by default (S3 + DynamoDB + 8 GiB EBS) — costs cents/month.
+# Set to true ONLY for the compute exercise, then `terraform destroy`.
+enable_compute = false
+
+# Days before noncurrent S3 object versions are permanently deleted.
+noncurrent_version_expiration_days = 30
+
+# Size of the standalone gp3 EBS volume (GiB).
+ebs_volume_size_gb = 8
+
+# Extra tags merged onto every resource.
+tags = {
+  Owner = "your-name"
+}

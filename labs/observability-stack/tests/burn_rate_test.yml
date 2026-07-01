@@ -1,0 +1,74 @@
+# promtool unit-test file for the sample-api burn-rate alerts.
+#
+# Run:  promtool test rules tests/burn_rate_test.yml
+# (validate.sh runs this automatically; it is also YAML-parsed and yamllint-ed.)
+#
+# This is the deterministic, synthetic-data proof that the burn-rate alert works:
+# it loads the real recording + alerting rules, feeds a counter that produces a
+# known error ratio, and asserts the alert fires (and stays silent when healthy).
+# Because promtool evaluates the SAME PromQL Prometheus would, a PASS here means
+# the burn-rate math is correct end to end -- no live cluster required.
+#
+# rule_files paths are relative to THIS file's directory.
+
+rule_files:
+  - ../solution/prometheus/rules/recording.rules.yml
+  - ../solution/prometheus/rules/alerting.rules.yml
+
+evaluation_interval: 1m
+
+tests:
+  # ---- Case 1: sustained 5% error rate => FAST burn fires (50x the budget) ----
+  - interval: 1m
+    input_series:
+      # 95 good (200) and 5 bad (500) requests per minute for 90 minutes.
+      # 5% error ratio = 50x the 0.001 budget, far above the 14.4x fast line.
+      - series: 'http_requests_total{job="sample-api", method="GET", path="/", status="200"}'
+        values: "0+95x90"
+      - series: 'http_requests_total{job="sample-api", method="GET", path="/error", status="500"}'
+        values: "0+5x90"
+    promql_expr_test:
+      # Sanity-check the recording rule the alert depends on: at 70m the 1h-window
+      # error ratio is exactly 0.05 (5%).
+      - expr: job:http_requests_error_ratio:rate1h{job="sample-api"}
+        eval_time: 70m
+        exp_samples:
+          - labels: 'job:http_requests_error_ratio:rate1h{job="sample-api"}'
+            value: 0.05
+    alert_rule_test:
+      - eval_time: 70m   # long enough for the 1h window to fill + the 2m `for`
+        alertname: SampleApiErrorBudgetBurnFast
+        exp_alerts:
+          - exp_labels:
+              severity: page
+              service: sample-api
+              slo: availability
+              burn_rate: "14.4"
+              job: sample-api
+            # promtool requires exp_annotations to match the rendered set
+            # EXACTLY, including the templated description. A sustained 5% ratio
+            # makes {{ $value | humanizePercentage }} render as "5%".
+            exp_annotations:
+              summary: "sample-api is burning its error budget FAST (14.4x)"
+              description: >-
+                Over the last 1h and 5m the sample-api 5xx error ratio is 5%,
+                above the 1.44% fast-burn threshold (14.4x the 99.9% SLO
+                budget). At this rate the 30-day error budget is consumed in ~2
+                days. Page on-call.
+              runbook_url: "https://runbooks.example.com/sample-api/error-budget-burn"
+              dashboard_url: "https://grafana.example.com/d/sample-api-red"
+
+  # ---- Case 2: healthy service (0 errors) => NO alert fires -------------------
+  - interval: 1m
+    input_series:
+      - series: 'http_requests_total{job="sample-api", method="GET", path="/", status="200"}'
+        values: "0+1000x90"
+      - series: 'http_requests_total{job="sample-api", method="GET", path="/error", status="500"}'
+        values: "0+0x90"     # zero errors => 0 burn
+    alert_rule_test:
+      - eval_time: 70m
+        alertname: SampleApiErrorBudgetBurnFast
+        exp_alerts: []        # must NOT fire
+      - eval_time: 70m
+        alertname: SampleApiErrorBudgetBurnSlow
+        exp_alerts: []

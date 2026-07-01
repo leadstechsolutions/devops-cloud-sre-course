@@ -1,0 +1,120 @@
+# Default values for the webapp chart.
+# These are the "dev/sane defaults". Override per environment with a
+# values file (e.g. values-prod.yaml) or --set on the CLI.
+
+# Number of replicas. Ignored when autoscaling.enabled is true (the HPA owns
+# the replica count once it exists).
+replicaCount: 2
+
+image:
+  repository: nginxinc/nginx-unprivileged
+  # Pull policy. IfNotPresent for tagged releases; never use :latest in prod.
+  pullPolicy: IfNotPresent
+  # Overrides the image tag. Defaults to .Chart.AppVersion when empty.
+  tag: ""
+
+imagePullSecrets: []
+
+# Override the generated names if you need to.
+nameOverride: ""
+fullnameOverride: ""
+
+serviceAccount:
+  # Create a dedicated ServiceAccount for the workload.
+  create: true
+  automount: true
+  annotations: {}
+  name: ""
+
+# Pod-level annotations (e.g. to trigger a rollout when the ConfigMap changes,
+# or for Prometheus scraping).
+podAnnotations: {}
+podLabels: {}
+
+# Runs the whole Pod as a non-root user and drops filesystem write access.
+# nginx-unprivileged listens on 8080 and works read-only.
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 101
+  runAsGroup: 101
+  fsGroup: 101
+  seccompProfile:
+    type: RuntimeDefault
+
+# Container-level hardening. Belt-and-braces with podSecurityContext.
+securityContext:
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: true
+  capabilities:
+    drop:
+      - ALL
+
+service:
+  type: ClusterIP
+  port: 80
+  # targetPort is the container port; nginx-unprivileged serves on 8080.
+  targetPort: 8080
+
+# Container port the app listens on.
+containerPort: 8080
+
+ingress:
+  enabled: false
+  className: "nginx"
+  annotations: {}
+    # cert-manager.io/cluster-issuer: letsencrypt-prod
+  hosts:
+    - host: webapp.example.com
+      paths:
+        - path: /
+          pathType: Prefix
+  tls: []
+    # - secretName: webapp-tls
+    #   hosts:
+    #     - webapp.example.com
+
+# CPU/memory requests and limits. Requests drive scheduling; limits cap usage.
+resources:
+  requests:
+    cpu: 50m
+    memory: 64Mi
+  limits:
+    cpu: 250m
+    memory: 128Mi
+
+# Liveness/readiness probes. Both hit nginx's default page on the container
+# port. Tune the path to your app's real health endpoints.
+livenessProbe:
+  httpGet:
+    path: /
+    port: http
+  initialDelaySeconds: 5
+  periodSeconds: 10
+  timeoutSeconds: 2
+  failureThreshold: 3
+readinessProbe:
+  httpGet:
+    path: /
+    port: http
+  initialDelaySeconds: 3
+  periodSeconds: 5
+  timeoutSeconds: 2
+  failureThreshold: 3
+
+autoscaling:
+  enabled: false
+  minReplicas: 2
+  maxReplicas: 10
+  targetCPUUtilizationPercentage: 80
+  # Set to enable memory-based scaling as well.
+  targetMemoryUtilizationPercentage: 0
+
+# Extra non-sensitive configuration rendered into a ConfigMap and exposed to
+# the container as files and/or env. Do NOT put secrets here.
+config:
+  LOG_LEVEL: "info"
+  GREETING: "hello from the webapp chart"
+
+nodeSelector: {}
+tolerations: []
+affinity: {}

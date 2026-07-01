@@ -1,0 +1,56 @@
+%% sre-incident-response: SLOs drive alerts; alerts drive the incident loop;
+%% incidents feed budget accounting and the blameless postmortem.
+flowchart TD
+    subgraph DEF["Define reliability (Week 21)"]
+        SLO["slo/slo.yaml\nOpenSLO: 99.9% avail + 99%@300ms latency"]
+        ALERTS["slo/burn-rate-alerts.yaml\nmulti-window multi-burn-rate (14.4x/6x/3x/1x)"]
+    end
+
+    subgraph MEASURE["Measure + account"]
+        PROM[(Prometheus\nhttp_requests_total / duration histogram)]
+        EB["scripts/error_budget.py\nbudget remaining %, burn rate, time-to-exhaustion"]
+        NINES["scripts/nines_downtime.py\ntarget -> allowed downtime / 30d / year"]
+    end
+
+    subgraph RESPOND["Respond (Week 22)"]
+        PAGE["PagerDuty page\n(severity: page)"]
+        IC["runbooks/incident-command.md\nIC / Comms / Ops roles"]
+        FIX["runbooks/high-error-rate.md\ndiagnose -> mitigate -> verify"]
+        PM["postmortem-template.md\nblameless + action items"]
+    end
+
+    subgraph VERIFY["Verify reliability"]
+        K6["load/k6-smoke.js + run-load.sh\nramp VUs, p95<300ms, err<0.1% thresholds"]
+        APP[("payments-api\n/healthz, /v1/authorize")]
+    end
+
+    subgraph DRILL["Injected-incident drill on kind (Week 22)"]
+        INJ["drill/inject.sh\ndeploy healthy -> ship v2 /healthz=503, maxUnavailable=100%"]
+        OBS["drill/observe.sh\nendpoints empty, pods NotReady, probe DOWN"]
+        REC["drill/recover.sh\nrollout undo + restore safe strategy"]
+        EVID["drill/LIVE-INCIDENT-EVIDENCE.txt\ntimestamped incident timeline (committed)"]
+        DPM["postmortems/2026-injected-readiness-failure.md\nblameless PM from the real timeline"]
+    end
+
+    SLO --> ALERTS
+    PROM --> ALERTS
+    PROM --> EB
+    SLO -. target .-> EB
+    SLO -. target .-> NINES
+    ALERTS -->|fast burn| PAGE
+    PAGE --> IC
+    IC --> FIX
+    FIX -->|service restored| PROM
+    FIX --> PM
+    EB -. budget consumed .-> PM
+    K6 --> APP
+    APP --> PROM
+    K6 -. p95/error thresholds .-> SLO
+
+    INJ --> OBS
+    OBS --> REC
+    INJ -. timestamps .-> EVID
+    OBS -. symptom .-> EVID
+    REC -. recovery .-> EVID
+    EVID --> DPM
+    FIX -. same rollback skill .-> REC

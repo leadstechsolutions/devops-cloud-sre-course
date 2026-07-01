@@ -1,0 +1,97 @@
+# The instrumented workload: sample-api -- STARTER.
+#
+# This Deployment runs the app, but Prometheus pod service-discovery will NOT
+# scrape it yet because the pod template is missing the discovery annotations.
+#
+# TODO: add these annotations to spec.template.metadata.annotations so the
+#       `sample-api` scrape job (which keeps pods with prometheus.io/scrape:
+#       "true") finds these pods:
+#         prometheus.io/scrape: "true"
+#         prometheus.io/port:   "8000"
+#         prometheus.io/path:   "/metrics"
+#       Reference: solution/k8s/10-sample-api.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: sample-api
+  namespace: lab-obs
+  labels:
+    app: sample-api
+    app.kubernetes.io/name: sample-api
+    app.kubernetes.io/part-of: observability-stack
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: sample-api
+  template:
+    metadata:
+      labels:
+        app: sample-api
+        app.kubernetes.io/name: sample-api
+        # TODO: add prometheus.io/{scrape,port,path} annotations here.
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        runAsGroup: 10001
+        fsGroup: 10001
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: sample-api
+          image: sample-api:1.0.0
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 8000
+              protocol: TCP
+          env:
+            - name: SLOW_MS
+              value: "750"
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            initialDelaySeconds: 3
+            periodSeconds: 10
+            timeoutSeconds: 2
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            initialDelaySeconds: 2
+            periodSeconds: 5
+            timeoutSeconds: 2
+            failureThreshold: 3
+          resources:
+            requests:
+              cpu: 25m
+              memory: 32Mi
+            limits:
+              cpu: 200m
+              memory: 64Mi
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            privileged: false
+            capabilities:
+              drop:
+                - ALL
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: sample-api
+  namespace: lab-obs
+  labels:
+    app: sample-api
+spec:
+  selector:
+    app: sample-api
+  ports:
+    - name: http
+      port: 80
+      targetPort: http
+      protocol: TCP

@@ -1,0 +1,46 @@
+{
+  "__comment": "RED dashboard for sample-api -- STARTER. The request-rate panel is wired up. TODO: add the error-ratio, latency (p50/p99), and burn-rate panels using the recording rules (see solution/grafana/sample-api-red.json). Validate with: python3 -m json.tool starter/grafana/sample-api-red.json",
+  "schemaVersion": 39,
+  "title": "sample-api - RED + SLO burn (starter)",
+  "uid": "sample-api-red-starter",
+  "tags": ["observability-stack", "RED", "SLO"],
+  "timezone": "browser",
+  "editable": true,
+  "refresh": "10s",
+  "time": {
+    "from": "now-1h",
+    "to": "now"
+  },
+  "templating": {
+    "list": [
+      {
+        "name": "datasource",
+        "type": "datasource",
+        "query": "prometheus",
+        "current": {},
+        "hide": 0
+      }
+    ]
+  },
+  "panels": [
+    {
+      "id": 1,
+      "title": "Request rate (R) - req/s",
+      "type": "timeseries",
+      "datasource": {"type": "prometheus", "uid": "${datasource}"},
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 0},
+      "fieldConfig": {
+        "defaults": {"unit": "reqps", "custom": {"drawStyle": "line", "fillOpacity": 10}},
+        "overrides": []
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {"type": "prometheus", "uid": "${datasource}"},
+          "expr": "job:http_requests:rate5m{job=\"sample-api\"}",
+          "legendFormat": "total"
+        }
+      ]
+    }
+  ]
+}

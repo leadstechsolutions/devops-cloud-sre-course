@@ -1,0 +1,90 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "webapp.fullname" . }}
+  labels:
+    {{- include "webapp.labels" . | nindent 4 }}
+spec:
+  {{- if not .Values.autoscaling.enabled }}
+  replicas: {{ .Values.replicaCount }}
+  {{- end }}
+  selector:
+    matchLabels:
+      {{- include "webapp.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      annotations:
+        # Roll the Deployment when the ConfigMap content changes.
+        checksum/config: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}
+        {{- with .Values.podAnnotations }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+      labels:
+        {{- include "webapp.selectorLabels" . | nindent 8 }}
+        {{- with .Values.podLabels }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ include "webapp.serviceAccountName" . }}
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      containers:
+        - name: {{ .Chart.Name }}
+          # TODO(student) 1: render the container image and pull policy from
+          # values. Use the "webapp.image" helper for the image reference, and
+          # quote it. Then set imagePullPolicy from .Values.image.pullPolicy.
+          #   image: {{ ... }}
+          #   imagePullPolicy: {{ ... }}
+          securityContext:
+            {{- toYaml .Values.securityContext | nindent 12 }}
+          ports:
+            # TODO(student) 2: declare the named container port. It must be
+            # called "http" (the probes and Service reference it by name) and
+            # use .Values.containerPort, protocol TCP.
+          envFrom:
+            - configMapRef:
+                name: {{ include "webapp.fullname" . }}-config
+          # TODO(student) 3: add livenessProbe and readinessProbe, each rendered
+          # from the matching values block with `toYaml ... | nindent 12`.
+          # Hint: the values already define httpGet on port "http".
+          #   livenessProbe:
+          #     {{- ... }}
+          #   readinessProbe:
+          #     {{- ... }}
+          # TODO(student) 4: render resources (requests + limits) from
+          # .Values.resources with `toYaml ... | nindent 12`. Without limits the
+          # Pod is BestEffort and the HPA has no CPU target to scale against.
+          #   resources:
+          #     {{- ... }}
+          volumeMounts:
+            # readOnlyRootFilesystem is true, so nginx needs writable scratch
+            # dirs for its cache/run/temp paths.
+            - name: tmp
+              mountPath: /tmp
+            - name: nginx-cache
+              mountPath: /var/cache/nginx
+            - name: nginx-run
+              mountPath: /var/run
+      volumes:
+        - name: tmp
+          emptyDir: {}
+        - name: nginx-cache
+          emptyDir: {}
+        - name: nginx-run
+          emptyDir: {}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}

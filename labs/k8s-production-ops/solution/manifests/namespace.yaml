@@ -1,0 +1,14 @@
+# Namespace for the production-ops sample workload and the rollout/PDB drills.
+# Pod Security Admission is set to `restricted` (enforced) so the sample app
+# must satisfy the hardened pod-security baseline a real cluster would impose.
+# The drills override the namespace NAME at apply time (a unique per-run name),
+# so this file documents the labels the drills attach to whatever ns they make.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: prod-ops
+  labels:
+    pod-security.kubernetes.io/enforce: "restricted"
+    pod-security.kubernetes.io/enforce-version: "latest"
+    pod-security.kubernetes.io/warn: "restricted"
+    pod-security.kubernetes.io/audit: "restricted"

@@ -1,0 +1,5 @@
+# Test/compile bytecode produced by validate.sh and local runs.
+__pycache__/
+*.pyc
+.pytest_cache/
+.venv/

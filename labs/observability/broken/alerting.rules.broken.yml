@@ -1,0 +1,35 @@
+# BROKEN FIXTURE — do not "fix" this file in place; copy it and fix the copy so the
+# fixture stays broken for the next learner. The troubleshooting drill (README) asks you
+# to find and explain TWO injected faults that make this a bad burn-rate alert even
+# though `promtool check rules` reports it as valid (these are SEMANTIC, not syntax bugs).
+#
+# Fault 1: SINGLE WINDOW. The fast-burn alert checks only the 5m window — there is no
+#          `and` with the 1h window. A 5-minute blip (one bad deploy that auto-rolls
+#          back, a transient dependency hiccup) pages on-call for nothing. The whole
+#          point of multi-window alerting is that the LONG window confirms the burn is
+#          real before paging.
+#
+# Fault 2: WRONG THRESHOLD UNITS. The threshold is written as `14.4` instead of
+#          `14.4 * 0.001` (= 0.0144). The recorded error ratio is a fraction in [0, 1],
+#          so it can NEVER exceed 14.4 — this alert can literally never fire. The author
+#          confused "14.4x the budget" with "14.4 as an absolute error ratio".
+#
+# The structural test tests/check_rules.py REJECTS this file (PASS = detected). Your job
+# is to turn it into the correct multi-window, multi-burn-rate alert (see solution/).
+
+groups:
+  - name: checkout-slo-burn-rate
+    rules:
+      - alert: CheckoutErrorBudgetBurnFast
+        # BUG: single 5m window (no `and` with rate1h) AND threshold 14.4 instead of
+        #      14.4 * 0.001. As written this never fires and would be flappy if it did.
+        expr: |
+          job:http_requests_error_ratio:rate5m{job="checkout"} > 14.4
+        for: 2m
+        labels:
+          severity: page
+          service: checkout
+          slo: availability
+        annotations:
+          summary: "checkout is burning its error budget FAST (14.4x)"
+          runbook_url: "https://runbooks.example.com/checkout/error-budget-burn"

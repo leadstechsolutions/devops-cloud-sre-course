@@ -1,0 +1,226 @@
+LIVE NETWORKPOLICY ENFORCEMENT — labs/k8s-production-ops (Drill 4)
+Dedicated kind cluster + Calico v3.27.4 (kindnet does NOT enforce NetworkPolicy).
+Proven: no policy=ALLOWED -> default-deny=BLOCKED -> allow-policy=ALLOWED. Cluster torn down.
+=LIVE NETWORKPOLICY ENFORCEMENT — labs/k8s-production-ops (Drill 4)
+Dedicated kind cluster + Calico v3.27.4 (kindnet does NOT enforce NetworkPolicy).
+Proven: no policy=ALLOWED -> default-deny=BLOCKED -> allow-policy=ALLOWED. Cluster torn down.
+=LIVE NETWORKPOLICY ENFORCEMENT — labs/k8s-production-ops (Drill 4)
+Dedicated kind cluster + Calico v3.27.4 (kindnet does NOT enforce NetworkPolicy).
+Proven: no policy=ALLOWED -> default-deny=BLOCKED -> allow-policy=ALLOWED. Cluster torn down.
+=LIVE NETWORKPOLICY ENFORCEMENT — labs/k8s-production-ops (Drill 4)
+Dedicated kind cluster + Calico v3.27.4 (kindnet does NOT enforce NetworkPolicy).
+Proven: no policy=ALLOWED -> default-deny=BLOCKED -> allow-policy=ALLOWED. Cluster torn down.
+=LIVE NETWORKPOLICY ENFORCEMENT — labs/k8s-production-ops (Drill 4)
+Dedicated kind cluster + Calico v3.27.4 (kindnet does NOT enforce NetworkPolicy).
+Proven: no policy=ALLOWED -> default-deny=BLOCKED -> allow-policy=ALLOWED. Cluster torn down.
+=LIVE NETWORKPOLICY ENFORCEMENT — labs/k8s-production-ops (Drill 4)
+Dedicated kind cluster + Calico v3.27.4 (kindnet does NOT enforce NetworkPolicy).
+Proven: no policy=ALLOWED -> default-deny=BLOCKED -> allow-policy=ALLOWED. Cluster torn down.
+=LIVE NETWORKPOLICY ENFORCEMENT — labs/k8s-production-ops (Drill 4)
+Dedicated kind cluster + Calico v3.27.4 (kindnet does NOT enforce NetworkPolicy).
+Proven: no policy=ALLOWED -> default-deny=BLOCKED -> allow-policy=ALLOWED. Cluster torn down.
+=LIVE NETWORKPOLICY ENFORCEMENT — labs/k8s-production-ops (Drill 4)
+Dedicated kind cluster + Calico v3.27.4 (kindnet does NOT enforce NetworkPolicy).
+Proven: no policy=ALLOWED -> default-deny=BLOCKED -> allow-policy=ALLOWED. Cluster torn down.
+=LIVE NETWORKPOLICY ENFORCEMENT — labs/k8s-production-ops (Drill 4)
+Dedicated kind cluster + Calico v3.27.4 (kindnet does NOT enforce NetworkPolicy).
+Proven: no policy=ALLOWED -> default-deny=BLOCKED -> allow-policy=ALLOWED. Cluster torn down.
+=LIVE NETWORKPOLICY ENFORCEMENT — labs/k8s-production-ops (Drill 4)
+Dedicated kind cluster + Calico v3.27.4 (kindnet does NOT enforce NetworkPolicy).
+Proven: no policy=ALLOWED -> default-deny=BLOCKED -> allow-policy=ALLOWED. Cluster torn down.
+=LIVE NETWORKPOLICY ENFORCEMENT — labs/k8s-production-ops (Drill 4)
+Dedicated kind cluster + Calico v3.27.4 (kindnet does NOT enforce NetworkPolicy).
+Proven: no policy=ALLOWED -> default-deny=BLOCKED -> allow-policy=ALLOWED. Cluster torn down.
+=LIVE NETWORKPOLICY ENFORCEMENT — labs/k8s-production-ops (Drill 4)
+Dedicated kind cluster + Calico v3.27.4 (kindnet does NOT enforce NetworkPolicy).
+Proven: no policy=ALLOWED -> default-deny=BLOCKED -> allow-policy=ALLOWED. Cluster torn down.
+=LIVE NETWORKPOLICY ENFORCEMENT — labs/k8s-production-ops (Drill 4)
+Dedicated kind cluster + Calico v3.27.4 (kindnet does NOT enforce NetworkPolicy).
+Proven: no policy=ALLOWED -> default-deny=BLOCKED -> allow-policy=ALLOWED. Cluster torn down.
+=LIVE NETWORKPOLICY ENFORCEMENT — labs/k8s-production-ops (Drill 4)
+Dedicated kind cluster + Calico v3.27.4 (kindnet does NOT enforce NetworkPolicy).
+Proven: no policy=ALLOWED -> default-deny=BLOCKED -> allow-policy=ALLOWED. Cluster torn down.
+=LIVE NETWORKPOLICY ENFORCEMENT — labs/k8s-production-ops (Drill 4)
+Dedicated kind cluster + Calico v3.27.4 (kindnet does NOT enforce NetworkPolicy).
+Proven: no policy=ALLOWED -> default-deny=BLOCKED -> allow-policy=ALLOWED. Cluster torn down.
+=LIVE NETWORKPOLICY ENFORCEMENT — labs/k8s-production-ops (Drill 4)
+Dedicated kind cluster + Calico v3.27.4 (kindnet does NOT enforce NetworkPolicy).
+Proven: no policy=ALLOWED -> default-deny=BLOCKED -> allow-policy=ALLOWED. Cluster torn down.
+=LIVE NETWORKPOLICY ENFORCEMENT — labs/k8s-production-ops (Drill 4)
+Dedicated kind cluster + Calico v3.27.4 (kindnet does NOT enforce NetworkPolicy).
+Proven: no policy=ALLOWED -> default-deny=BLOCKED -> allow-policy=ALLOWED. Cluster torn down.
+=LIVE NETWORKPOLICY ENFORCEMENT — labs/k8s-production-ops (Drill 4)
+Dedicated kind cluster + Calico v3.27.4 (kindnet does NOT enforce NetworkPolicy).
+Proven: no policy=ALLOWED -> default-deny=BLOCKED -> allow-policy=ALLOWED. Cluster torn down.
+=LIVE NETWORKPOLICY ENFORCEMENT — labs/k8s-production-ops (Drill 4)
+Dedicated kind cluster + Calico v3.27.4 (kindnet does NOT enforce NetworkPolicy).
+Proven: no policy=ALLOWED -> default-deny=BLOCKED -> allow-policy=ALLOWED. Cluster torn down.
+=LIVE NETWORKPOLICY ENFORCEMENT — labs/k8s-production-ops (Drill 4)
+Dedicated kind cluster + Calico v3.27.4 (kindnet does NOT enforce NetworkPolicy).
+Proven: no policy=ALLOWED -> default-deny=BLOCKED -> allow-policy=ALLOWED. Cluster torn down.
+=LIVE NETWORKPOLICY ENFORCEMENT — labs/k8s-production-ops (Drill 4)
+Dedicated kind cluster + Calico v3.27.4 (kindnet does NOT enforce NetworkPolicy).
+Proven: no policy=ALLOWED -> default-deny=BLOCKED -> allow-policy=ALLOWED. Cluster torn down.
+=LIVE NETWORKPOLICY ENFORCEMENT — labs/k8s-production-ops (Drill 4)
+Dedicated kind cluster + Calico v3.27.4 (kindnet does NOT enforce NetworkPolicy).
+Proven: no policy=ALLOWED -> default-deny=BLOCKED -> allow-policy=ALLOWED. Cluster torn down.
+=LIVE NETWORKPOLICY ENFORCEMENT — labs/k8s-production-ops (Drill 4)
+Dedicated kind cluster + Calico v3.27.4 (kindnet does NOT enforce NetworkPolicy).
+Proven: no policy=ALLOWED -> default-deny=BLOCKED -> allow-policy=ALLOWED. Cluster torn down.
+=LIVE NETWORKPOLICY ENFORCEMENT — labs/k8s-production-ops (Drill 4)
+Dedicated kind cluster + Calico v3.27.4 (kindnet does NOT enforce NetworkPolicy).
+Proven: no policy=ALLOWED -> default-deny=BLOCKED -> allow-policy=ALLOWED. Cluster torn down.
+=LIVE NETWORKPOLICY ENFORCEMENT — labs/k8s-production-ops (Drill 4)
+Dedicated kind cluster + Calico v3.27.4 (kindnet does NOT enforce NetworkPolicy).
+Proven: no policy=ALLOWED -> default-deny=BLOCKED -> allow-policy=ALLOWED. Cluster torn down.
+=LIVE NETWORKPOLICY ENFORCEMENT — labs/k8s-production-ops (Drill 4)
+Dedicated kind cluster + Calico v3.27.4 (kindnet does NOT enforce NetworkPolicy).
+Proven: no policy=ALLOWED -> default-deny=BLOCKED -> allow-policy=ALLOWED. Cluster torn down.
+=LIVE NETWORKPOLICY ENFORCEMENT — labs/k8s-production-ops (Drill 4)
+Dedicated kind cluster + Calico v3.27.4 (kindnet does NOT enforce NetworkPolicy).
+Proven: no policy=ALLOWED -> default-deny=BLOCKED -> allow-policy=ALLOWED. Cluster torn down.
+=LIVE NETWORKPOLICY ENFORCEMENT — labs/k8s-production-ops (Drill 4)
+Dedicated kind cluster + Calico v3.27.4 (kindnet does NOT enforce NetworkPolicy).
+Proven: no policy=ALLOWED -> default-deny=BLOCKED -> allow-policy=ALLOWED. Cluster torn down.
+=LIVE NETWORKPOLICY ENFORCEMENT — labs/k8s-production-ops (Drill 4)
+Dedicated kind cluster + Calico v3.27.4 (kindnet does NOT enforce NetworkPolicy).
+Proven: no policy=ALLOWED -> default-deny=BLOCKED -> allow-policy=ALLOWED. Cluster torn down.
+=LIVE NETWORKPOLICY ENFORCEMENT — labs/k8s-production-ops (Drill 4)
+Dedicated kind cluster + Calico v3.27.4 (kindnet does NOT enforce NetworkPolicy).
+Proven: no policy=ALLOWED -> default-deny=BLOCKED -> allow-policy=ALLOWED. Cluster torn down.
+=LIVE NETWORKPOLICY ENFORCEMENT — labs/k8s-production-ops (Drill 4)
+Dedicated kind cluster + Calico v3.27.4 (kindnet does NOT enforce NetworkPolicy).
+Proven: no policy=ALLOWED -> default-deny=BLOCKED -> allow-policy=ALLOWED. Cluster torn down.
+=LIVE NETWORKPOLICY ENFORCEMENT — labs/k8s-production-ops (Drill 4)
+Dedicated kind cluster + Calico v3.27.4 (kindnet does NOT enforce NetworkPolicy).
+Proven: no policy=ALLOWED -> default-deny=BLOCKED -> allow-policy=ALLOWED. Cluster torn down.
+=LIVE NETWORKPOLICY ENFORCEMENT — labs/k8s-production-ops (Drill 4)
+Dedicated kind cluster + Calico v3.27.4 (kindnet does NOT enforce NetworkPolicy).
+Proven: no policy=ALLOWED -> default-deny=BLOCKED -> allow-policy=ALLOWED. Cluster torn down.
+=LIVE NETWORKPOLICY ENFORCEMENT — labs/k8s-production-ops (Drill 4)
+Dedicated kind cluster + Calico v3.27.4 (kindnet does NOT enforce NetworkPolicy).
+Proven: no policy=ALLOWED -> default-deny=BLOCKED -> allow-policy=ALLOWED. Cluster torn down.
+=LIVE NETWORKPOLICY ENFORCEMENT — labs/k8s-production-ops (Drill 4)
+Dedicated kind cluster + Calico v3.27.4 (kindnet does NOT enforce NetworkPolicy).
+Proven: no policy=ALLOWED -> default-deny=BLOCKED -> allow-policy=ALLOWED. Cluster torn down.
+=LIVE NETWORKPOLICY ENFORCEMENT — labs/k8s-production-ops (Drill 4)
+Dedicated kind cluster + Calico v3.27.4 (kindnet does NOT enforce NetworkPolicy).
+Proven: no policy=ALLOWED -> default-deny=BLOCKED -> allow-policy=ALLOWED. Cluster torn down.
+=LIVE NETWORKPOLICY ENFORCEMENT — labs/k8s-production-ops (Drill 4)
+Dedicated kind cluster + Calico v3.27.4 (kindnet does NOT enforce NetworkPolicy).
+Proven: no policy=ALLOWED -> default-deny=BLOCKED -> allow-policy=ALLOWED. Cluster torn down.
+=LIVE NETWORKPOLICY ENFORCEMENT — labs/k8s-production-ops (Drill 4)
+Dedicated kind cluster + Calico v3.27.4 (kindnet does NOT enforce NetworkPolicy).
+Proven: no policy=ALLOWED -> default-deny=BLOCKED -> allow-policy=ALLOWED. Cluster torn down.
+=LIVE NETWORKPOLICY ENFORCEMENT — labs/k8s-production-ops (Drill 4)
+Dedicated kind cluster + Calico v3.27.4 (kindnet does NOT enforce NetworkPolicy).
+Proven: no policy=ALLOWED -> default-deny=BLOCKED -> allow-policy=ALLOWED. Cluster torn down.
+=LIVE NETWORKPOLICY ENFORCEMENT — labs/k8s-production-ops (Drill 4)
+Dedicated kind cluster + Calico v3.27.4 (kindnet does NOT enforce NetworkPolicy).
+Proven: no policy=ALLOWED -> default-deny=BLOCKED -> allow-policy=ALLOWED. Cluster torn down.
+=LIVE NETWORKPOLICY ENFORCEMENT — labs/k8s-production-ops (Drill 4)
+Dedicated kind cluster + Calico v3.27.4 (kindnet does NOT enforce NetworkPolicy).
+Proven: no policy=ALLOWED -> default-deny=BLOCKED -> allow-policy=ALLOWED. Cluster torn down.
+=LIVE NETWORKPOLICY ENFORCEMENT — labs/k8s-production-ops (Drill 4)
+Dedicated kind cluster + Calico v3.27.4 (kindnet does NOT enforce NetworkPolicy).
+Proven: no policy=ALLOWED -> default-deny=BLOCKED -> allow-policy=ALLOWED. Cluster torn down.
+=LIVE NETWORKPOLICY ENFORCEMENT — labs/k8s-production-ops (Drill 4)
+Dedicated kind cluster + Calico v3.27.4 (kindnet does NOT enforce NetworkPolicy).
+Proven: no policy=ALLOWED -> default-deny=BLOCKED -> allow-policy=ALLOWED. Cluster torn down.
+=LIVE NETWORKPOLICY ENFORCEMENT — labs/k8s-production-ops (Drill 4)
+Dedicated kind cluster + Calico v3.27.4 (kindnet does NOT enforce NetworkPolicy).
+Proven: no policy=ALLOWED -> default-deny=BLOCKED -> allow-policy=ALLOWED. Cluster torn down.
+=LIVE NETWORKPOLICY ENFORCEMENT — labs/k8s-production-ops (Drill 4)
+Dedicated kind cluster + Calico v3.27.4 (kindnet does NOT enforce NetworkPolicy).
+Proven: no policy=ALLOWED -> default-deny=BLOCKED -> allow-policy=ALLOWED. Cluster torn down.
+=LIVE NETWORKPOLICY ENFORCEMENT — labs/k8s-production-ops (Drill 4)
+Dedicated kind cluster + Calico v3.27.4 (kindnet does NOT enforce NetworkPolicy).
+Proven: no policy=ALLOWED -> default-deny=BLOCKED -> allow-policy=ALLOWED. Cluster torn down.
+=LIVE NETWORKPOLICY ENFORCEMENT — labs/k8s-production-ops (Drill 4)
+Dedicated kind cluster + Calico v3.27.4 (kindnet does NOT enforce NetworkPolicy).
+Proven: no policy=ALLOWED -> default-deny=BLOCKED -> allow-policy=ALLOWED. Cluster torn down.
+=LIVE NETWORKPOLICY ENFORCEMENT — labs/k8s-production-ops (Drill 4)
+Dedicated kind cluster + Calico v3.27.4 (kindnet does NOT enforce NetworkPolicy).
+Proven: no policy=ALLOWED -> default-deny=BLOCKED -> allow-policy=ALLOWED. Cluster torn down.
+=LIVE NETWORKPOLICY ENFORCEMENT — labs/k8s-production-ops (Drill 4)
+Dedicated kind cluster + Calico v3.27.4 (kindnet does NOT enforce NetworkPolicy).
+Proven: no policy=ALLOWED -> default-deny=BLOCKED -> allow-policy=ALLOWED. Cluster torn down.
+=LIVE NETWORKPOLICY ENFORCEMENT — labs/k8s-production-ops (Drill 4)
+Dedicated kind cluster + Calico v3.27.4 (kindnet does NOT enforce NetworkPolicy).
+Proven: no policy=ALLOWED -> default-deny=BLOCKED -> allow-policy=ALLOWED. Cluster torn down.
+=LIVE NETWORKPOLICY ENFORCEMENT — labs/k8s-production-ops (Drill 4)
+Dedicated kind cluster + Calico v3.27.4 (kindnet does NOT enforce NetworkPolicy).
+Proven: no policy=ALLOWED -> default-deny=BLOCKED -> allow-policy=ALLOWED. Cluster torn down.
+=LIVE NETWORKPOLICY ENFORCEMENT — labs/k8s-production-ops (Drill 4)
+Dedicated kind cluster + Calico v3.27.4 (kindnet does NOT enforce NetworkPolicy).
+Proven: no policy=ALLOWED -> default-deny=BLOCKED -> allow-policy=ALLOWED. Cluster torn down.
+=LIVE NETWORKPOLICY ENFORCEMENT — labs/k8s-production-ops (Drill 4)
+Dedicated kind cluster + Calico v3.27.4 (kindnet does NOT enforce NetworkPolicy).
+Proven: no policy=ALLOWED -> default-deny=BLOCKED -> allow-policy=ALLOWED. Cluster torn down.
+=LIVE NETWORKPOLICY ENFORCEMENT — labs/k8s-production-ops (Drill 4)
+Dedicated kind cluster + Calico v3.27.4 (kindnet does NOT enforce NetworkPolicy).
+Proven: no policy=ALLOWED -> default-deny=BLOCKED -> allow-policy=ALLOWED. Cluster torn down.
+=LIVE NETWORKPOLICY ENFORCEMENT — labs/k8s-production-ops (Drill 4)
+Dedicated kind cluster + Calico v3.27.4 (kindnet does NOT enforce NetworkPolicy).
+Proven: no policy=ALLOWED -> default-deny=BLOCKED -> allow-policy=ALLOWED. Cluster torn down.
+=LIVE NETWORKPOLICY ENFORCEMENT — labs/k8s-production-ops (Drill 4)
+Dedicated kind cluster + Calico v3.27.4 (kindnet does NOT enforce NetworkPolicy).
+Proven: no policy=ALLOWED -> default-deny=BLOCKED -> allow-policy=ALLOWED. Cluster torn down.
+=LIVE NETWORKPOLICY ENFORCEMENT — labs/k8s-production-ops (Drill 4)
+Dedicated kind cluster + Calico v3.27.4 (kindnet does NOT enforce NetworkPolicy).
+Proven: no policy=ALLOWED -> default-deny=BLOCKED -> allow-policy=ALLOWED. Cluster torn down.
+=LIVE NETWORKPOLICY ENFORCEMENT — labs/k8s-production-ops (Drill 4)
+Dedicated kind cluster + Calico v3.27.4 (kindnet does NOT enforce NetworkPolicy).
+Proven: no policy=ALLOWED -> default-deny=BLOCKED -> allow-policy=ALLOWED. Cluster torn down.
+=LIVE NETWORKPOLICY ENFORCEMENT — labs/k8s-production-ops (Drill 4)
+Dedicated kind cluster + Calico v3.27.4 (kindnet does NOT enforce NetworkPolicy).
+Proven: no policy=ALLOWED -> default-deny=BLOCKED -> allow-policy=ALLOWED. Cluster torn down.
+=LIVE NETWORKPOLICY ENFORCEMENT — labs/k8s-production-ops (Drill 4)
+Dedicated kind cluster + Calico v3.27.4 (kindnet does NOT enforce NetworkPolicy).
+Proven: no policy=ALLOWED -> default-deny=BLOCKED -> allow-policy=ALLOWED. Cluster torn down.
+=LIVE NETWORKPOLICY ENFORCEMENT — labs/k8s-production-ops (Drill 4)
+Dedicated kind cluster + Calico v3.27.4 (kindnet does NOT enforce NetworkPolicy).
+Proven: no policy=ALLOWED -> default-deny=BLOCKED -> allow-policy=ALLOWED. Cluster torn down.
+=LIVE NETWORKPOLICY ENFORCEMENT — labs/k8s-production-ops (Drill 4)
+Dedicated kind cluster + Calico v3.27.4 (kindnet does NOT enforce NetworkPolicy).
+Proven: no policy=ALLOWED -> default-deny=BLOCKED -> allow-policy=ALLOWED. Cluster torn down.
+=LIVE NETWORKPOLICY ENFORCEMENT — labs/k8s-production-ops (Drill 4)
+Dedicated kind cluster + Calico v3.27.4 (kindnet does NOT enforce NetworkPolicy).
+Proven: no policy=ALLOWED -> default-deny=BLOCKED -> allow-policy=ALLOWED. Cluster torn down.
+=LIVE NETWORKPOLICY ENFORCEMENT — labs/k8s-production-ops (Drill 4)
+Dedicated kind cluster + Calico v3.27.4 (kindnet does NOT enforce NetworkPolicy).
+Proven: no policy=ALLOWED -> default-deny=BLOCKED -> allow-policy=ALLOWED. Cluster torn down.
+=LIVE NETWORKPOLICY ENFORCEMENT — labs/k8s-production-ops (Drill 4)
+Dedicated kind cluster + Calico v3.27.4 (kindnet does NOT enforce NetworkPolicy).
+Proven: no policy=ALLOWED -> default-deny=BLOCKED -> allow-policy=ALLOWED. Cluster torn down.
+=LIVE NETWORKPOLICY ENFORCEMENT — labs/k8s-production-ops (Drill 4)
+Dedicated kind cluster + Calico v3.27.4 (kindnet does NOT enforce NetworkPolicy).
+Proven: no policy=ALLOWED -> default-deny=BLOCKED -> allow-policy=ALLOWED. Cluster torn down.
+=LIVE NETWORKPOLICY ENFORCEMENT — labs/k8s-production-ops (Drill 4)
+Dedicated kind cluster + Calico v3.27.4 (kindnet does NOT enforce NetworkPolicy).
+Proven: no policy=ALLOWED -> default-deny=BLOCKED -> allow-policy=ALLOWED. Cluster torn down.
+=LIVE NETWORKPOLICY ENFORCEMENT — labs/k8s-production-ops (Drill 4)
+Dedicated kind cluster + Calico v3.27.4 (kindnet does NOT enforce NetworkPolicy).
+Proven: no policy=ALLOWED -> default-deny=BLOCKED -> allow-policy=ALLOWED. Cluster torn down.
+=
+DRILL 4: NetworkPolicy enforcement on Calico   (cluster=netpol)
+--- installing Calico v3.27.4 ---
+STEP A: NO policy yet -> client->server should be ALLOWED
+http_code=200  curl_exit=0
+  -> ALLOWED (curl exit 0) as expected with no NetworkPolicy.
+STEP B: apply default-deny-ingress -> client->server should be BLOCKED
+networkpolicy.networking.k8s.io/default-deny-ingress created
+http_code=000command terminated with exit code 28  curl_exit=28
+  -> BLOCKED (curl exit 28; 28=timeout) — Calico enforced the default-deny.
+STEP C: apply allow-client-to-server -> client->server ALLOWED again
+networkpolicy.networking.k8s.io/allow-client-to-server created
+(giving Calico a moment to program the allow)
+http_code=200  curl_exit=0
+  -> ALLOWED again (curl exit 0) — the explicit allow re-opened only this flow.
+allow-client-to-server   app=server     5s
+default-deny-ingress     <none>         17s
+RESULT: PASS — enforcement proven.
+  STEP A (no policy)     curl_exit=0  (ALLOWED)
+  STEP B (default-deny)  curl_exit=28  (BLOCKED)
+  STEP C (allow policy)  curl_exit=0  (ALLOWED)
+--- tearing down kind cluster 'netpol' ---

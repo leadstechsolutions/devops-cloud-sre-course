@@ -1,0 +1,38 @@
+# yamllint configuration for the observability-stack module.
+#
+# Narrow, documented relaxations of the strict `default` preset:
+#
+#   line-length:    These are TEACHING artifacts. The Prometheus rule files,
+#                   prometheus.yml scrape config, and the embedded ConfigMap carry
+#                   long inline explanatory comments (the SRE Workbook burn-rate
+#                   math, relabel rationale). Wrapping that prose to 80 columns
+#                   hurts readability, so the limit is raised to 120 and made a
+#                   WARNING (does not fail the gate). Real STRUCTURE problems
+#                   (indentation, duplicate keys, trailing whitespace, bad
+#                   truthy/quoting) remain ERRORS.
+#
+#   document-start: Prometheus rule/config files are conventionally written
+#                   WITHOUT a leading `---` (that is how upstream ships them).
+#                   Requiring `---` would diverge from configs learners copy.
+#
+#   comments / comments-indentation: relaxed to warning so the heavily annotated
+#                   teaching comments (aligned tables, indented bullet lists) do
+#                   not fail the gate on cosmetic spacing.
+#
+# Everything else inherits the strict `default` preset.
+
+extends: default
+
+rules:
+  line-length:
+    max: 120
+    level: warning
+  document-start: disable
+  comments:
+    level: warning
+  comments-indentation:
+    level: warning
+  truthy:
+    # Allow Prometheus annotation values like prometheus.io/scrape: "true"
+    # (they are quoted strings, not booleans) without warnings.
+    check-keys: false

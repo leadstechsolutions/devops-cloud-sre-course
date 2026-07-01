@@ -1,0 +1,35 @@
+# RBAC for Prometheus pod service-discovery, scoped to the lab-obs namespace.
+#
+# Prometheus needs to list/watch pods to discover scrape targets. We grant the
+# MINIMUM: a namespaced Role (not ClusterRole) over pods/endpoints/services in
+# lab-obs only -- least privilege, so a compromised Prometheus cannot enumerate
+# the whole cluster.
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: prometheus
+  namespace: lab-obs
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: prometheus
+  namespace: lab-obs
+rules:
+  - apiGroups: [""]
+    resources: ["pods", "services", "endpoints"]
+    verbs: ["get", "list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: prometheus
+  namespace: lab-obs
+subjects:
+  - kind: ServiceAccount
+    name: prometheus
+    namespace: lab-obs
+roleRef:
+  kind: Role
+  name: prometheus
+  apiGroup: rbac.authorization.k8s.io

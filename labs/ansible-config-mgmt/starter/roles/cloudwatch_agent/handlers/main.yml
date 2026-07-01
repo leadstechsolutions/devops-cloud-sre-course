@@ -1,0 +1,6 @@
+---
+# Handlers for the cloudwatch_agent role.
+- name: Restart cloudwatch agent
+  ansible.builtin.service:
+    name: amazon-cloudwatch-agent
+    state: restarted

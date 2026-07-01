@@ -1,0 +1,20 @@
+flowchart LR
+    subgraph kind["kind cluster (kind-course)"]
+        subgraph ns["namespace: lab-obs"]
+            APP["sample-api Deployment<br/>2 replicas, /metrics (RED)<br/>pod annotations:<br/>prometheus.io/scrape,port,path"]
+            PROM["Prometheus Deployment<br/>prom/prometheus:v2.55.0<br/>config + rules from ConfigMap"]
+            SA["ServiceAccount + Role<br/>(get/list/watch pods)"]
+        end
+    end
+
+    SA -. "RBAC: pod SD" .-> PROM
+    PROM -- "kubernetes_sd role:pod<br/>scrape :8000/metrics" --> APP
+
+    PROM -- "recording.rules.yml" --> REC["RED series<br/>rate / error_ratio / p50 / p99"]
+    REC -- "alerting.rules.yml<br/>multi-window, multi-burn-rate" --> ALERTS["alerts:<br/>BurnFast 14.4x (page)<br/>BurnSlow 6x (ticket)<br/>HighLatencyP99"]
+
+    REC -- "PromQL targets" --> GRAF["Grafana dashboard<br/>grafana/sample-api-red.json"]
+
+    TEST["tests/burn_rate_test.yml<br/>(promtool test rules)"] -. "feeds synthetic 5% errors,<br/>asserts BurnFast FIRES" .-> ALERTS
+
+    DEMO["run-demo.sh (RUN_LIVE=1)"] -. "build+load image, deploy,<br/>drive load, query PromQL,<br/>capture LIVE-OBS-EVIDENCE.txt" .-> kind

@@ -1,0 +1,35 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: payments-web-config-v2
+  namespace: lab-incident
+  labels:
+    app: payments-web
+    config-version: v2
+data:
+  # The BAD config (the injected fault). This stands in for a regression that
+  # shipped in v2: /healthz now returns 503, so the readiness probe FAILS. New
+  # pods never become Ready, kube-proxy removes them from the Service endpoints,
+  # and the service degrades. The business endpoint is also broken (500) to make
+  # the customer-facing symptom unambiguous when a request does slip through.
+  default.conf: |
+    server {
+        listen 8080;
+        server_name _;
+
+        # Regression: health endpoint reports unhealthy -> readiness probe fails.
+        location = /healthz {
+            add_header Content-Type text/plain;
+            return 503 'unhealthy: payments-web v2 /healthz regressed\n';
+        }
+
+        location = /v1/authorize {
+            add_header Content-Type application/json;
+            return 500 '{"error": "internal", "version": "v2"}\n';
+        }
+
+        location / {
+            add_header Content-Type text/plain;
+            return 500 'payments-web v2 (broken)\n';
+        }
+    }

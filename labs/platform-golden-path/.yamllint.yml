@@ -1,0 +1,33 @@
+# Relaxed yamllint config for the golden-path YAML (GitHub Actions workflows,
+# plain k8s manifests, chart values.yaml).
+#
+# Why relaxed: GitHub Actions files use `on:` as a real key (not a boolean) and
+# never start with `---`; teaching files carry long explanatory comments. We
+# keep the structural checks that catch real bugs (indentation, duplicate keys,
+# trailing whitespace).
+#
+# NOTE: the Helm chart TEMPLATES (chart/templates/*.yaml) are Go templates, not
+# plain YAML — they are validated by `helm lint`/`helm template`/`kubeconform`,
+# not by yamllint, so they are excluded below.
+extends: default
+
+ignore: |
+  **/chart/templates/
+
+rules:
+  document-start: disable
+  truthy:
+    check-keys: false
+  line-length:
+    max: 120
+    level: warning
+  comments:
+    min-spaces-from-content: 1
+  comments-indentation: disable
+  braces:
+    min-spaces-inside: 0
+    max-spaces-inside: 0
+  empty-lines:
+    max: 1
+    max-start: 0
+    max-end: 1

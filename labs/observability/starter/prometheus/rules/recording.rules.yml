@@ -1,0 +1,90 @@
+# Recording rules: precompute the RED-method series for the `checkout` service.
+# STARTER — one rule (the p99 latency) is left as a TODO. The rest are complete so the
+# burn-rate alerts you write in alerting.rules.yml have their error-ratio inputs.
+#
+# Validate with: promtool check rules prometheus/rules/recording.rules.yml
+#
+# Naming: level:metric:operation (Prometheus convention).
+
+groups:
+  - name: checkout-red-recording
+    interval: 30s
+    rules:
+      # --- R: request rate (requests/second) --------------------------------------
+      - record: job:http_requests:rate5m
+        expr: |
+          sum by (job) (
+            rate(http_requests_total{job="checkout"}[5m])
+          )
+
+      - record: job_route:http_requests:rate5m
+        expr: |
+          sum by (job, route) (
+            rate(http_requests_total{job="checkout"}[5m])
+          )
+
+      # --- E: error rate (5xx requests/second) ------------------------------------
+      - record: job:http_requests_errors:rate5m
+        expr: |
+          sum by (job) (
+            rate(http_requests_total{job="checkout", status_code=~"5.."}[5m])
+          )
+
+      # --- E: error RATIO (errors / total), 0..1 — the SLI for availability. -------
+      - record: job:http_requests_error_ratio:rate5m
+        expr: |
+          sum by (job) (
+            rate(http_requests_total{job="checkout", status_code=~"5.."}[5m])
+          )
+          /
+          sum by (job) (
+            rate(http_requests_total{job="checkout"}[5m])
+          )
+
+      - record: job:http_requests_error_ratio:rate30m
+        expr: |
+          sum by (job) (
+            rate(http_requests_total{job="checkout", status_code=~"5.."}[30m])
+          )
+          /
+          sum by (job) (
+            rate(http_requests_total{job="checkout"}[30m])
+          )
+
+      - record: job:http_requests_error_ratio:rate1h
+        expr: |
+          sum by (job) (
+            rate(http_requests_total{job="checkout", status_code=~"5.."}[1h])
+          )
+          /
+          sum by (job) (
+            rate(http_requests_total{job="checkout"}[1h])
+          )
+
+      - record: job:http_requests_error_ratio:rate6h
+        expr: |
+          sum by (job) (
+            rate(http_requests_total{job="checkout", status_code=~"5.."}[6h])
+          )
+          /
+          sum by (job) (
+            rate(http_requests_total{job="checkout"}[6h])
+          )
+
+      # --- D: p99 request latency (seconds) from the classic histogram ------------
+      - record: job:http_request_duration_seconds:p99
+        # TODO(student): compute p99 latency with histogram_quantile over the per-bucket
+        # rate. Remember to sum the bucket rate `by (job, le)` — dropping `le` is the
+        # classic mistake that makes histogram_quantile return nonsense. Replace below.
+        expr: |
+          # TODO(student): replace with histogram_quantile(0.99, sum by (job, le) (...))
+          vector(0)
+
+      - record: job_route:http_request_duration_seconds:p99
+        expr: |
+          histogram_quantile(
+            0.99,
+            sum by (job, route, le) (
+              rate(http_request_duration_seconds_bucket{job="checkout"}[5m])
+            )
+          )

@@ -1,0 +1,19 @@
+---
+# Role defaults (lowest precedence). group_vars/all.yml overrides these.
+# They exist so the role is usable standalone without a group_vars file.
+#
+# ansible-lint var-naming[no-role-prefix]: variables a role DEFINES must carry
+# the role name as a prefix. The public, fleet-wide interface stays the friendly
+# unprefixed names in group_vars/all.yml; each default below resolves to that
+# shared value when set, and to a sane built-in otherwise.
+baseline_app_user: "{{ app_user | default('appuser') }}"
+baseline_app_group: "{{ app_group | default('appuser') }}"
+baseline_app_user_shell: "{{ app_user_shell | default('/bin/bash') }}"
+baseline_app_user_authorized_key: "{{ app_user_authorized_key | default('') }}"
+
+baseline_packages:
+  - vim
+  - curl
+  - git
+
+baseline_system_timezone: "{{ system_timezone | default('Etc/UTC') }}"

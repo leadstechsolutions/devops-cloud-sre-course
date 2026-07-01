@@ -1,0 +1,22 @@
+# STARTER — TODO: write a PodDisruptionBudget for the cpu-burner Deployment.
+#
+# The Deployment runs 3 replicas (labels: app.kubernetes.io/name=cpu-burner).
+# Requirements:
+#   - Guarantee at least 2 pods stay available during VOLUNTARY disruptions
+#     (node drain / eviction).
+#   - Select the cpu-burner pods by their app.kubernetes.io/name label.
+#
+# Acceptance (see ../../solution/manifests/pdb.yaml and drills/pdb-drain.sh):
+#   `kubectl get pdb cpu-burner` shows ALLOWED DISRUPTIONS = 1 when 3 are healthy.
+#
+# Hints:
+#   - apiVersion is policy/v1 (NOT policy/v1beta1, removed in k8s 1.25+).
+#   - Choose minAvailable vs maxUnavailable deliberately; minAvailable is clearer
+#     here. Do NOT set both.
+#
+# TODO: replace this comment block with a valid PodDisruptionBudget.
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: cpu-burner
+spec: {}  # TODO: set minAvailable and a selector matching the cpu-burner pods

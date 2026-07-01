@@ -1,0 +1,88 @@
+# The sample workload for every drill in this lab: the cpu-burner image from the
+# performance-scaling lab. It serves:
+#   GET /healthz -> 200 {"status":"ok"}            (cheap; used for probes)
+#   GET /        -> 200 {"hostname","service",...} (used to PROVE pod-to-pod reachability)
+#   GET /burn    -> burns CPU (unused here)
+#
+# v1 ("good") is image cpu-burner:1.0.0. The rollout-rollback drill flips this
+# image to a non-existent tag to force an ImagePullBackOff and a stuck rollout,
+# then `kubectl rollout undo` brings it back. Three replicas so the PDB drill has
+# something to protect.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: cpu-burner
+  labels:
+    app.kubernetes.io/name: cpu-burner
+    app.kubernetes.io/part-of: k8s-production-ops
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: cpu-burner
+  # maxUnavailable:0 means the rollout will NOT take down a healthy old pod until
+  # a new one is Ready. A bad image therefore leaves all 3 v1 pods serving while
+  # the rollout sits stuck — exactly the safe-by-default behaviour the drill shows.
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 1
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: cpu-burner
+        app.kubernetes.io/part-of: k8s-production-ops
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        runAsGroup: 10001
+        fsGroup: 10001
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: cpu-burner
+          image: cpu-burner:1.0.0
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 8000
+              protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            initialDelaySeconds: 3
+            periodSeconds: 10
+            timeoutSeconds: 2
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            initialDelaySeconds: 2
+            periodSeconds: 5
+            timeoutSeconds: 2
+            failureThreshold: 3
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 250m
+              memory: 128Mi
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            privileged: false
+            capabilities:
+              drop:
+                - ALL
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: tmp
+          emptyDir:
+            sizeLimit: 16Mi

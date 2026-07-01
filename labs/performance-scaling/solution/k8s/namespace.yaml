@@ -1,0 +1,12 @@
+# Dedicated namespace for the lab so everything can be torn down with a single
+# `kubectl delete ns lab-perf`. Pod Security Admission is set to `baseline`
+# (not `restricted`) because the demo keeps things simple; the workload itself
+# is still hardened (non-root, no privilege escalation, all caps dropped).
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: lab-perf
+  labels:
+    app.kubernetes.io/part-of: performance-scaling
+    pod-security.kubernetes.io/enforce: baseline
+    pod-security.kubernetes.io/warn: restricted

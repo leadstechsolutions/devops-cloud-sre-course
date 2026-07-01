@@ -1,0 +1,54 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# commit-msg  (STARTER — fill the TODOs, then compare with solution/hooks/commit-msg)
+# ---------------------------------------------------------------------------
+# Enforce Conventional Commits on the SUBJECT line:
+#   <type>[(scope)][!]: <description>
+#   type = build|chore|ci|docs|feat|fix|perf|refactor|revert|style|test
+# Git passes the commit message file path as $1.
+# ---------------------------------------------------------------------------
+
+msg_file="$1"
+
+subject="$(grep -vE '^[[:space:]]*#' "$msg_file" | grep -vE '^[[:space:]]*$' | head -n1 || true)"
+
+case "$subject" in
+  "Merge "*|"Revert "*|"fixup! "*|"squash! "*)
+    exit 0 ;;
+esac
+
+# TODO(student): build the Conventional Commits subject regex (POSIX ERE).
+#   - allowed types: build chore ci docs feat fix perf refactor revert style test
+#   - optional scope in parentheses, e.g. (api)
+#   - optional '!' to flag a breaking change
+#   - ': ' then a non-empty description that does NOT end in a period
+#   Example matches: "feat: add x", "fix(api): y", "refactor(db)!: z"
+#   Example non-matches: "updated stuff", "FEAT: x", "feat: x."
+types='REPLACE_ME_TYPE_ALTERNATION'      # e.g. build|chore|ci|...
+pattern='REPLACE_ME_FULL_PATTERN'        # e.g. ^(...)(\(...\))?(!)?: .+[^.]$
+
+if [[ -z "$subject" ]]; then
+  echo "commit-msg: empty commit message. Aborting." >&2
+  exit 1
+fi
+
+if [[ ${#subject} -gt 72 ]]; then
+  printf 'commit-msg: subject line is %s chars (> 72). Keep it short.\n' "${#subject}" >&2
+  exit 1
+fi
+
+if ! echo "$subject" | grep -Eq "$pattern"; then
+  cat >&2 <<EOF
+commit-msg: subject does not follow Conventional Commits.
+
+  Got:      $subject
+  Expected: <type>[(scope)][!]: <description>
+  Types:    build chore ci docs feat fix perf refactor revert style test
+
+Commit aborted. Fix the message and retry.
+EOF
+  exit 1
+fi
+
+exit 0

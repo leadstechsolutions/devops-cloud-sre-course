@@ -1,0 +1,99 @@
+# OpenSLO v1 specification for the payments-api service.
+# Spec: https://github.com/OpenSLO/OpenSLO  (apiVersion openslo/v1)
+# Validate with: oslo validate -f slo/slo.yaml      (DEFERRED — see README; oslo absent)
+# Lighter local gate run here: YAML well-formedness via PyYAML safe_load_all.
+#
+# This file is the SINGLE SOURCE OF TRUTH for the payments-api SLOs. The burn-rate
+# alerts in slo/burn-rate-alerts.yaml implement multi-window multi-burn-rate alerting
+# against the 99.9% availability objective below. scripts/error_budget.py computes the
+# same budget from raw good/total counts. Keep the three in sync.
+#
+#   Availability: 99.9% over a rolling 30d window  =>  error budget = 0.1% of requests.
+#   Latency:      99% of requests under 300ms over a rolling 30d window.
+---
+apiVersion: openslo/v1
+kind: Service
+metadata:
+  name: payments-api
+  displayName: Payments API
+spec:
+  description: Card authorization and capture API. Customer-facing, revenue-critical.
+---
+apiVersion: openslo/v1
+kind: SLO
+metadata:
+  name: payments-api-availability
+  displayName: Payments API Availability
+  labels:
+    team: payments
+    tier: critical
+spec:
+  description: >-
+    99.9% of HTTP requests to payments-api should succeed (non-5xx) over a rolling
+    30-day window. This is the availability SLO the burn-rate alerts protect.
+  service: payments-api
+  budgetingMethod: Occurrences   # good/total event ratio (vs. Timeslices)
+  indicator:
+    metadata:
+      name: payments-api-success-ratio
+    spec:
+      ratioMetric:
+        counter: true
+        total:
+          metricSource:
+            type: Prometheus
+            spec:
+              query: |
+                sum(rate(http_requests_total{job="payments-api"}[5m]))
+        good:
+          metricSource:
+            type: Prometheus
+            spec:
+              query: |
+                sum(rate(http_requests_total{job="payments-api", code!~"5.."}[5m]))
+  timeWindow:
+    - duration: 30d
+      isRolling: true
+  objectives:
+    - displayName: 99.9% successful requests
+      target: 0.999   # error budget 0.001 (0.1%); matches burn-rate-alerts.yaml
+---
+apiVersion: openslo/v1
+kind: SLO
+metadata:
+  name: payments-api-latency
+  displayName: Payments API Latency
+  labels:
+    team: payments
+    tier: critical
+spec:
+  description: >-
+    99% of requests to payments-api should complete within 300ms over a rolling
+    30-day window. Measured from a histogram of request durations.
+  service: payments-api
+  budgetingMethod: Occurrences
+  indicator:
+    metadata:
+      name: payments-api-latency-ratio
+    spec:
+      ratioMetric:
+        counter: true
+        # "good" = requests served within the 300ms threshold; "total" = all requests.
+        total:
+          metricSource:
+            type: Prometheus
+            spec:
+              query: |
+                sum(rate(http_request_duration_seconds_count{job="payments-api"}[5m]))
+        good:
+          metricSource:
+            type: Prometheus
+            spec:
+              query: |
+                sum(rate(http_request_duration_seconds_bucket{job="payments-api", le="0.3"}[5m]))
+  timeWindow:
+    - duration: 30d
+      isRolling: true
+  objectives:
+    - displayName: 99% of requests under 300ms
+      target: 0.99   # latency error budget 0.01 (1%) of requests slower than 300ms

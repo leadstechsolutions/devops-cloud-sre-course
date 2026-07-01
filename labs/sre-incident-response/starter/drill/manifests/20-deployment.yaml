@@ -1,0 +1,103 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: payments-web
+  namespace: lab-incident
+  labels:
+    app: payments-web
+spec:
+  replicas: 3
+  # progressDeadlineSeconds bounds how long a stalled rollout (the injected
+  # fault) stays "in progress" before kubectl rollout status reports failure.
+  # Kept short so the drill detects the bad rollout quickly.
+  progressDeadlineSeconds: 60
+  revisionHistoryLimit: 5
+  selector:
+    matchLabels:
+      app: payments-web
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      # Surge one new pod, allow one old pod down. With a readiness probe that
+      # never passes on the bad version, the rollout stalls partway: Ready
+      # endpoints drop but do not necessarily reach zero -- a realistic
+      # "degraded, not fully down" incident. inject.sh tightens this when it
+      # wants a full outage symptom.
+      maxSurge: 1
+      maxUnavailable: 1
+  template:
+    metadata:
+      labels:
+        app: payments-web
+      annotations:
+        # Bumped by inject.sh/recover.sh so a config-only change forces a new
+        # rollout revision (ConfigMap edits alone do not restart pods).
+        config-version: v1
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 101
+        runAsGroup: 101
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: web
+          # Unprivileged nginx: runs as UID 101, listens on 8080, and writes its
+          # temp/cache under /tmp -- so it works with a locked-down securityContext
+          # (no CAP_CHOWN needed) and a read-only-ish mount of just the conf.d dir.
+          image: nginxinc/nginx-unprivileged:1.27-alpine
+          ports:
+            - name: http
+              containerPort: 8080
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            initialDelaySeconds: 2
+            periodSeconds: 3
+            timeoutSeconds: 2
+            failureThreshold: 2
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            timeoutSeconds: 2
+            failureThreshold: 3
+          resources:
+            requests:
+              cpu: 10m
+              memory: 16Mi
+            limits:
+              cpu: 100m
+              memory: 64Mi
+          volumeMounts:
+            - name: nginx-conf
+              mountPath: /etc/nginx/conf.d
+              readOnly: true
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+      volumes:
+        - name: nginx-conf
+          configMap:
+            # Points at the healthy config by default. inject.sh swaps this to
+            # payments-web-config-v2 to inject the fault; recover.sh swaps back.
+            name: payments-web-config-v1
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: payments-web
+  namespace: lab-incident
+  labels:
+    app: payments-web
+spec:
+  selector:
+    app: payments-web
+  ports:
+    - name: http
+      port: 80
+      targetPort: http

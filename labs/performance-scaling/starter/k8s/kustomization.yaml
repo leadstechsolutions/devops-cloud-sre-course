@@ -1,0 +1,21 @@
+# Bundles the lab's objects so `kubectl apply -k solution/k8s` brings up the
+# whole stack (and `kubectl kustomize solution/k8s | kubeconform` validates the
+# exact set of objects that will be applied). The Namespace is listed first;
+# `namespace:` pins every other object into it.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: lab-perf
+
+resources:
+  - namespace.yaml
+  - deployment.yaml
+  - service.yaml
+  - hpa.yaml
+
+# See solution/k8s/kustomization.yaml for why includeSelectors:false matters
+# (the Deployment selector is immutable). `commonLabels` is deprecated.
+labels:
+  - pairs:
+      app.kubernetes.io/part-of: performance-scaling
+    includeSelectors: false

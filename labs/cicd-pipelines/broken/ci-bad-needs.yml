@@ -1,0 +1,43 @@
+name: ci
+
+# BROKEN FIXTURE — do not copy this into solution/.
+# Symptom: GitHub Actions refuses to run the workflow with
+#   "Job 'scan' depends on unknown job 'buld'."
+# Cause: the `build` job is referenced as `buld` (typo) in scan.needs, and the
+#   `test` job needs a non-existent `unit` job. tests/check_job_graph.py catches
+#   both before you ever push. Fix: correct the job names in each `needs:` list.
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: echo "lint"
+
+  test:
+    runs-on: ubuntu-latest
+    needs: [unit]          # BUG: there is no job named 'unit'
+    steps:
+      - uses: actions/checkout@v4
+      - run: echo "test"
+
+  build:
+    runs-on: ubuntu-latest
+    needs: [test]
+    steps:
+      - uses: actions/checkout@v4
+      - run: echo "build"
+
+  scan:
+    runs-on: ubuntu-latest
+    needs: [buld]          # BUG: typo, should be 'build'
+    steps:
+      - uses: actions/checkout@v4
+      - run: echo "scan"

@@ -1,0 +1,83 @@
+# Two pods for the NetworkPolicy enforcement proof, on the Calico cluster.
+#   server: runs cpu-burner, exposes :8000, fronted by a ClusterIP Service.
+#   client: a curl-capable pod that probes the server Service.
+#
+# Both are hardened for `restricted` PSA. The drill curls server from client and
+# records the exit code BEFORE any policy (allowed), AFTER default-deny (blocked),
+# and AFTER the allow policy (allowed again).
+apiVersion: v1
+kind: Pod
+metadata:
+  name: server
+  labels:
+    app: server
+spec:
+  securityContext:
+    runAsNonRoot: true
+    runAsUser: 10001
+    seccompProfile:
+      type: RuntimeDefault
+  containers:
+    - name: cpu-burner
+      image: cpu-burner:1.0.0
+      imagePullPolicy: IfNotPresent
+      ports:
+        - name: http
+          containerPort: 8000
+      readinessProbe:
+        httpGet:
+          path: /healthz
+          port: http
+        periodSeconds: 3
+      securityContext:
+        allowPrivilegeEscalation: false
+        readOnlyRootFilesystem: true
+        capabilities:
+          drop:
+            - ALL
+      volumeMounts:
+        - name: tmp
+          mountPath: /tmp
+  volumes:
+    - name: tmp
+      emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: server
+  labels:
+    app: server
+spec:
+  selector:
+    app: server
+  ports:
+    - name: http
+      port: 8000
+      targetPort: http
+---
+# Client uses curlimages/curl (ships curl, runs as non-root UID 100). It sleeps so
+# the drill can `kubectl exec` repeated curl probes into it.
+apiVersion: v1
+kind: Pod
+metadata:
+  name: client
+  labels:
+    app: client
+spec:
+  securityContext:
+    runAsNonRoot: true
+    runAsUser: 100
+    seccompProfile:
+      type: RuntimeDefault
+  containers:
+    - name: curl
+      image: curlimages/curl:8.10.1
+      imagePullPolicy: IfNotPresent
+      command: ["sleep", "3600"]
+      securityContext:
+        allowPrivilegeEscalation: false
+        readOnlyRootFilesystem: true
+        capabilities:
+          drop:
+            - ALL

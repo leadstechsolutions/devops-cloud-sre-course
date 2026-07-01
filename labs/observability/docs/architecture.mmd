@@ -1,0 +1,18 @@
+flowchart LR
+    subgraph svc["checkout service (instrumented)"]
+        APP["app pods<br/>/metrics (RED)<br/>OTLP traces+logs"]
+    end
+
+    APP -- "OTLP gRPC/HTTP" --> OTEL["OpenTelemetry Collector<br/>otlp -> memory_limiter -> batch -> resource"]
+    OTEL -- ":8889 prometheus exporter" --> PROM
+    OTEL -- "OTLP" --> TEMPO["traces backend<br/>(Tempo/Jaeger)"]
+
+    APP -- "scrape /metrics" --> PROM["Prometheus<br/>scrape + rules"]
+
+    PROM -- "recording.rules.yml" --> REC["RED series<br/>rate / error_ratio / p99"]
+    REC -- "alerting.rules.yml<br/>multi-burn-rate" --> AM["Alertmanager"]
+    AM -- "page (14.4x)" --> ONCALL["on-call"]
+    AM -- "ticket (6x)" --> QUEUE["ticket queue"]
+
+    PROM -- "PromQL targets" --> GRAF["Grafana<br/>service-overview.json"]
+    SLO["slo.yaml (OpenSLO v1)<br/>99.9% availability"] -. "defines budget the<br/>burn-rate alerts protect" .-> REC

@@ -1,0 +1,23 @@
+# Explicit allow: pods labelled app=server accept ingress on TCP/8000 ONLY from
+# pods labelled app=client. With the default-deny in place, this is the single
+# flow that is permitted; everything else stays denied. After applying this,
+# client -> server curl succeeds again (exit 0, HTTP 200) while any other source
+# remains blocked.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-client-to-server
+spec:
+  podSelector:
+    matchLabels:
+      app: server
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app: client
+      ports:
+        - protocol: TCP
+          port: 8000

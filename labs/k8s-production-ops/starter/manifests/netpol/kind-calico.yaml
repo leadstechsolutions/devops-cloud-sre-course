@@ -1,0 +1,17 @@
+# kind cluster config for the NetworkPolicy drill.
+#
+# kindnet (kind's default CNI) does NOT enforce NetworkPolicy — a default-deny is
+# silently ignored, so you cannot prove enforcement on the course cluster. We
+# therefore spin up a SEPARATE single-node kind cluster with the default CNI
+# DISABLED and install Calico, which does enforce policy. The drill deletes this
+# cluster when it finishes.
+#
+# podSubnet must match the CALICO_IPV4POOL_CIDR the drill patches into Calico
+# (192.168.0.0/16, Calico's default) so pods actually get addresses.
+kind: Cluster
+apiVersion: kind.x-k8s.io/v1alpha4
+networking:
+  disableDefaultCNI: true
+  podSubnet: "192.168.0.0/16"
+nodes:
+  - role: control-plane

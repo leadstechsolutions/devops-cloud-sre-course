@@ -1,0 +1,96 @@
+================================================================================
+LIVE DEMO EVIDENCE — performance-scaling (Week 22)
+================================================================================
+Captured by running `./solution/run-demo.sh` on a live kind cluster
+(context kind-course, k8s v1.31, metrics-server v0.8.1 with --kubelet-insecure-tls,
+k6 v0.54, peak 20 VUs at 120ms CPU burn/request).
+
+The HorizontalPodAutoscaler scaled the cpu-burner Deployment from 1 to 5 replicas
+under k6 load (CPU reached 108% of the 50% target), then scaled back in after the
+load stopped. k6 thresholds (p95 latency, error rate, checks) all passed. The demo
+deleted ns lab-perf and uninstalled metrics-server on exit (run-demo.sh exit 0).
+
+This is the artifact referenced by validate.sh Gate 8 when the live e2e is not
+re-run inline. Reproduce the full run (~3 min) with:
+
+    docker build -t cpu-burner:1.0.0 solution/app
+    kind load docker-image cpu-burner:1.0.0 --name course
+    ./solution/run-demo.sh
+    # or, to gate it inside the suite:  PERF_E2E=1 ./validate.sh
+
+--------------------------------------------------------------------------------
+1) metrics-server installed and serving (the prerequisite for ANY CPU HPA)
+--------------------------------------------------------------------------------
+=== installing metrics-server (kind-patched) ===
+deployment "metrics-server" successfully rolled out
+    waiting for the metrics API to serve pod metrics (kubectl top)…
+    metrics API is serving after ~10s
+
+--------------------------------------------------------------------------------
+2) Workload + HPA applied; HPA reads real CPU metrics (TARGETS not <unknown>)
+--------------------------------------------------------------------------------
+=== waiting for the HPA to read CPU metrics (TARGETS != <unknown>) ===
+    HPA is reading metrics (current 1% of request) after ~30s
+NAME         REFERENCE               TARGETS       MINPODS   MAXPODS   REPLICAS   AGE
+cpu-burner   Deployment/cpu-burner   cpu: 1%/50%   1         5         1          30s
+                                     ^^^^^^^^^^^                       ^^^^^^^^
+                                     reading metrics (not <unknown>)   start: 1 replica
+
+--------------------------------------------------------------------------------
+3) k6 ramping load drives CPU up; HPA scales OUT 1 -> 3 -> 5  (THE HEADLINE)
+--------------------------------------------------------------------------------
+=== running k6 load (peak 20 VUs, burn 120ms/request) ===
+    [hpa-watch] REPLICAS rose to 3      (~t+31s into the load)
+    [hpa-watch] REPLICAS rose to 5      (~t+47s into the load)
+
+=== HPA state after load ===
+NAME         REFERENCE               TARGETS         MINPODS   MAXPODS   REPLICAS   AGE
+cpu-burner   Deployment/cpu-burner   cpu: 108%/50%   1         5         5          2m19s
+                                     ^^^^^^^^^^^^^                       ^^^^^^^^
+                                     CPU at >2x target -> scaled to max  REPLICAS: 5
+
+NAME                         READY   STATUS    RESTARTS   AGE
+cpu-burner-...-fqqfs         1/1     Running   0          2m19s  (original)
+cpu-burner-...-5jx8z         1/1     Running   0          94s    (added by HPA)
+cpu-burner-...-bhmsd         1/1     Running   0          94s    (added by HPA)
+cpu-burner-...-6n874         1/1     Running   0          80s    (added by HPA)
+cpu-burner-...-p9x9g         1/1     Running   0          80s    (added by HPA)
+    peak observed REPLICAS during load: 5
+    RESULT: HPA scaled UP (1 -> 5). Autoscaling demonstrated.
+
+--------------------------------------------------------------------------------
+4) k6 thresholds (the load-test pass/fail gates) — ALL PASSED
+--------------------------------------------------------------------------------
+   ✓ burn_duration ....: avg=369.63ms  p(90)=591.32ms  p(95)=690.64ms  max=1.19s
+        threshold p(95)<1500 .... PASS (690ms)
+   ✓ checks ...........: 100.00%  7198 out of 7198
+        threshold rate>0.95 ..... PASS (1.00)
+   ✓ http_req_failed ..: 0.00%   0 out of 3600
+        threshold rate<0.03 ..... PASS (0.00)
+   http_reqs ..........: 3600   (~33 req/s through one kubectl port-forward)
+
+   (Note: k6 v0.54 prints a spurious negative `min=` for duration metrics on this
+    platform — a known cosmetic display bug; the p95/avg/thresholds are correct.)
+
+--------------------------------------------------------------------------------
+5) Load stops; HPA scales IN (5 -> 4 -> ... -> 1 over the stabilisation window)
+--------------------------------------------------------------------------------
+=== stopping load; observing scale-down (HPA scaleDown stabilisation ~60s) ===
+    t+0s  after load: REPLICAS=5
+    t+10s after load: REPLICAS=5     (scaleDown stabilizationWindowSeconds=60 holds)
+    ... window expires, then drains ...
+NAME         REFERENCE               TARGETS       MINPODS   MAXPODS   REPLICAS   AGE
+cpu-burner   Deployment/cpu-burner   cpu: 1%/50%   1         5         4          3m51s
+    scale-IN observed (REPLICAS 5 -> 4); HPA continues toward 1.
+    (run-demo.sh exits on the first scale-IN to keep the demo bounded; set
+     FULL_SCALEDOWN=1 to wait all the way back to REPLICAS=1, ~3 more min.)
+
+--------------------------------------------------------------------------------
+6) Teardown — nothing left running
+--------------------------------------------------------------------------------
+=== cleanup ===
+    deleted namespace lab-perf
+    uninstalled metrics-server
+
+run-demo.sh exit code: 0   (SUCCESS: scaling observed AND k6 thresholds passed)
+================================================================================

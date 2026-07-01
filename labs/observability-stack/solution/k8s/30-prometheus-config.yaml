@@ -1,0 +1,276 @@
+# GENERATED FILE -- do not edit by hand.
+# Source of truth: solution/prometheus/{prometheus.yml,rules/*.yml}
+# Regenerate with: python3 scripts/gen-configmap.py --variant solution
+#
+# This ConfigMap carries the Prometheus server config and both rule files. It is
+# mounted into the prometheus Deployment two ways (see 40-prometheus.yaml):
+#   * prometheus.yml via subPath at /etc/prometheus/prometheus.yml
+#   * the whole map as a dir at /etc/prometheus/rules (so each rule file appears
+#     at /etc/prometheus/rules/<name>.yml, matching the rewritten rule_files).
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: prometheus-config
+  namespace: lab-obs
+  labels:
+    app: prometheus
+    app.kubernetes.io/part-of: observability-stack
+data:
+  prometheus.yml: |
+    # Prometheus server config for the observability-stack lab.
+    #
+    # Validate: promtool check config prometheus/prometheus.yml
+    #   (check config also loads + checks every file in rule_files.)
+    #
+    # Scope: this single Prometheus scrapes itself and the sample-api pods in the
+    # lab-obs namespace via Kubernetes pod service-discovery. Pod SD is used (rather
+    # than a static target) so that scaling sample-api to N replicas is picked up
+    # automatically and each pod becomes its own `instance` -- exactly how a real
+    # deployment behaves. The ServiceAccount it runs under has a namespaced Role
+    # granting get/list/watch on pods (see k8s/prometheus-rbac.yaml).
+    #
+    # In the kind deploy the rule files are mounted from a ConfigMap at
+    # /etc/prometheus/rules/; here the paths are relative so `promtool check config`
+    # resolves them from this directory.
+
+    global:
+      scrape_interval: 15s
+      evaluation_interval: 15s
+      external_labels:
+        cluster: kind-course
+        env: lab
+
+    # Load the RED recording rules and the burn-rate alerting rules.
+    rule_files:
+      - /etc/prometheus/rules/recording.rules.yml
+      - /etc/prometheus/rules/alerting.rules.yml
+
+    scrape_configs:
+      # ---- Prometheus scraping itself (liveness of the monitoring system) ----
+      - job_name: prometheus
+        static_configs:
+          - targets: ["localhost:9090"]
+
+      # ---- sample-api pods, discovered in the lab-obs namespace ----
+      # relabel_configs turn raw pod metadata into a clean target set:
+      #   * keep only pods annotated prometheus.io/scrape: "true";
+      #   * scrape the port named by prometheus.io/port (default 8000) at /metrics;
+      #   * set job="sample-api" so it matches the recording/alerting rules;
+      #   * expose pod name + node as labels for drill-down.
+      - job_name: sample-api
+        kubernetes_sd_configs:
+          - role: pod
+            namespaces:
+              names:
+                - lab-obs
+        relabel_configs:
+          - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_scrape]
+            action: keep
+            regex: "true"
+          - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_port]
+            action: replace
+            target_label: __tmp_port
+            regex: (.+)
+          # Rewrite the scrape address to pod_ip:annotated_port (default 8000).
+          - source_labels: [__address__, __tmp_port]
+            action: replace
+            regex: ([^:]+)(?::\d+)?;(\d+)
+            replacement: $1:$2
+            target_label: __address__
+          - source_labels: [__meta_kubernetes_pod_label_app]
+            action: replace
+            target_label: job
+            regex: (sample-api)
+          - source_labels: [__meta_kubernetes_pod_name]
+            action: replace
+            target_label: pod
+          - source_labels: [__meta_kubernetes_pod_node_name]
+            action: replace
+            target_label: node
+  recording.rules.yml: |
+    # RED recording rules for the `sample-api` service.
+    #
+    # Validate: promtool check rules prometheus/rules/recording.rules.yml
+    #
+    # RED = Rate, Errors, Duration. These rules precompute the three RED signals
+    # from the raw app metrics so that BOTH the burn-rate alerts and the Grafana
+    # dashboard read from one canonical definition (recording rules are the single
+    # source of truth -- you never want the alert and the graph to disagree about
+    # what "error rate" means).
+    #
+    # Naming convention (Prometheus recording-rule style): level:metric:operation
+    #   job:http_requests:rate5m                 -> total request rate  (R)
+    #   job:http_requests_errors:rate5m          -> 5xx error rate       (E, numerator)
+    #   job:http_requests_error_ratio:rate5m     -> error RATIO 0..1     (E, the SLI)
+    #   job:http_request_duration_seconds:p99    -> p99 latency seconds  (D)
+    #
+    # Error-ratio windows (5m/30m/1h/6h) exist because the multi-window burn-rate
+    # alert in alerting.rules.yml compares a short and a long window. Each window is
+    # its own recording rule so promtool can unit-test them deterministically.
+    #
+    # IMPORTANT: status is a STRING label on http_requests_total, so the 5xx match
+    # uses =~"5.." (regex), not a numeric comparison.
+
+    groups:
+      - name: sample-api-red-rate
+        interval: 15s
+        rules:
+          # ---- R: total request rate (per second), summed across paths/status ----
+          - record: job:http_requests:rate5m
+            expr: sum by (job) (rate(http_requests_total{job="sample-api"}[5m]))
+
+          # ---- E numerator: 5xx error rate (per second) ----
+          - record: job:http_requests_errors:rate5m
+            expr: sum by (job) (rate(http_requests_total{job="sample-api", status=~"5.."}[5m]))
+
+      - name: sample-api-red-error-ratio
+        interval: 15s
+        rules:
+          # ---- E: error RATIO (0..1) over each window the burn-rate alert needs ----
+          # Guard against divide-by-zero with `> 0` on the denominator via `or vector(0)`
+          # is unnecessary here because we only alert when traffic exists; an empty
+          # result for a window with no traffic simply means "no alert", which is correct.
+          - record: job:http_requests_error_ratio:rate5m
+            expr: |
+              sum by (job) (rate(http_requests_total{job="sample-api", status=~"5.."}[5m]))
+              /
+              sum by (job) (rate(http_requests_total{job="sample-api"}[5m]))
+
+          - record: job:http_requests_error_ratio:rate30m
+            expr: |
+              sum by (job) (rate(http_requests_total{job="sample-api", status=~"5.."}[30m]))
+              /
+              sum by (job) (rate(http_requests_total{job="sample-api"}[30m]))
+
+          - record: job:http_requests_error_ratio:rate1h
+            expr: |
+              sum by (job) (rate(http_requests_total{job="sample-api", status=~"5.."}[1h]))
+              /
+              sum by (job) (rate(http_requests_total{job="sample-api"}[1h]))
+
+          - record: job:http_requests_error_ratio:rate6h
+            expr: |
+              sum by (job) (rate(http_requests_total{job="sample-api", status=~"5.."}[6h]))
+              /
+              sum by (job) (rate(http_requests_total{job="sample-api"}[6h]))
+
+      - name: sample-api-red-duration
+        interval: 15s
+        rules:
+          # ---- D: p99 and p50 request latency from the histogram buckets ----
+          # histogram_quantile over the per-le bucket rate. `by (le, job)` keeps the
+          # le dimension (required by histogram_quantile) and collapses path/method.
+          - record: job:http_request_duration_seconds:p99
+            expr: |
+              histogram_quantile(
+                0.99,
+                sum by (le, job) (rate(http_request_duration_seconds_bucket{job="sample-api"}[5m]))
+              )
+
+          - record: job:http_request_duration_seconds:p50
+            expr: |
+              histogram_quantile(
+                0.50,
+                sum by (le, job) (rate(http_request_duration_seconds_bucket{job="sample-api"}[5m]))
+              )
+  alerting.rules.yml: |
+    # Burn-rate alerting rules for the `sample-api` availability SLO.
+    #
+    # Validate: promtool check rules prometheus/rules/alerting.rules.yml
+    # Test:     promtool test rules tests/burn_rate_test.yml   (run by validate.sh)
+    #
+    # SLO: 99.9% of requests succeed over 30 days  =>  error budget = 0.1% = 0.001.
+    #
+    # A "burn rate" is how fast you spend the error budget relative to the rate that
+    # would exhaust it exactly at the window's end. Burn rate 1 = on track to use
+    # 100% of the 30-day budget in 30 days. Burn rate 14.4 = on track in ~2 days.
+    #
+    # Multi-window, multi-burn-rate (Google SRE Workbook, "Alerting on SLOs"). The
+    # thresholds below are the Workbook's recommended table for a 30-day window:
+    #
+    #   Severity  Long window  Short window  Burn rate  Budget burned when it fires
+    #   --------  -----------  ------------  ---------  ---------------------------
+    #   page      1h           5m            14.4       2%   (fast burn -- wake on-call)
+    #   ticket    6h           30m           6          5%   (slow burn -- fix this week)
+    #
+    # Why TWO windows per alert: the LONG window gives significance (you have really
+    # been burning budget, not a 1-minute blip); the SHORT window gives fast reset
+    # (when the incident ends the alert clears quickly instead of staying lit for the
+    # whole long window). BOTH must exceed the threshold -- that is the `and`.
+    #
+    # The error_ratio:rateXX series are precomputed in recording.rules.yml so the
+    # alert and the dashboards share one definition of "error".
+
+    groups:
+      - name: sample-api-slo-burn-rate
+        rules:
+          # ============================ FAST BURN (page) ============================
+          # Fires when, over the last 1h AND the last 5m, the error ratio exceeds
+          # 14.4 * 0.001 = 0.0144. ~2% of the 30-day budget is gone by the time this
+          # fires; at 14.4x it would be fully exhausted in ~2 days. Pages on-call.
+          - alert: SampleApiErrorBudgetBurnFast
+            expr: |
+              (
+                job:http_requests_error_ratio:rate1h{job="sample-api"} > (14.4 * 0.001)
+                and
+                job:http_requests_error_ratio:rate5m{job="sample-api"} > (14.4 * 0.001)
+              )
+            for: 2m
+            labels:
+              severity: page
+              service: sample-api
+              slo: availability
+              burn_rate: "14.4"
+            annotations:
+              summary: "sample-api is burning its error budget FAST (14.4x)"
+              description: >-
+                Over the last 1h and 5m the sample-api 5xx error ratio is
+                {{ $value | humanizePercentage }}, above the 1.44% fast-burn
+                threshold (14.4x the 99.9% SLO budget). At this rate the 30-day
+                error budget is consumed in ~2 days. Page on-call.
+              runbook_url: "https://runbooks.example.com/sample-api/error-budget-burn"
+              dashboard_url: "https://grafana.example.com/d/sample-api-red"
+
+          # ============================ SLOW BURN (ticket) =========================
+          # Fires when, over the last 6h AND the last 30m, the error ratio exceeds
+          # 6 * 0.001 = 0.006. ~5% of the budget is gone; at 6x it exhausts in ~5
+          # days. This is a ticket, not a page -- fix it within the week.
+          - alert: SampleApiErrorBudgetBurnSlow
+            expr: |
+              (
+                job:http_requests_error_ratio:rate6h{job="sample-api"} > (6 * 0.001)
+                and
+                job:http_requests_error_ratio:rate30m{job="sample-api"} > (6 * 0.001)
+              )
+            for: 15m
+            labels:
+              severity: ticket
+              service: sample-api
+              slo: availability
+              burn_rate: "6"
+            annotations:
+              summary: "sample-api is burning its error budget slowly (6x)"
+              description: >-
+                Over the last 6h and 30m the sample-api 5xx error ratio is
+                {{ $value | humanizePercentage }}, above the 0.6% slow-burn
+                threshold (6x the 99.9% SLO budget). At this rate the 30-day error
+                budget is consumed in ~5 days. Open a ticket; fix within the week.
+              runbook_url: "https://runbooks.example.com/sample-api/error-budget-burn"
+              dashboard_url: "https://grafana.example.com/d/sample-api-red"
+
+      - name: sample-api-latency
+        rules:
+          # A plain latency SLO alert so learners see a non-burn-rate alert too.
+          - alert: SampleApiHighLatencyP99
+            expr: job:http_request_duration_seconds:p99{job="sample-api"} > 1
+            for: 10m
+            labels:
+              severity: ticket
+              service: sample-api
+              slo: latency
+            annotations:
+              summary: "sample-api p99 latency above 1s"
+              description: >-
+                p99 request latency for sample-api is {{ $value | humanizeDuration }}
+                (threshold 1s) over the last 10 minutes.
+              runbook_url: "https://runbooks.example.com/sample-api/high-latency"

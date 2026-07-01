@@ -1,0 +1,35 @@
+flowchart TB
+    user[External client] -->|"HTTP web.example.com"| ing
+
+    subgraph cluster["Kubernetes cluster"]
+        subgraph ingressns["namespace: ingress-nginx"]
+            ing["Ingress controller\n(ingress-nginx)"]
+        end
+
+        subgraph webns["namespace: web (PSA: restricted)"]
+            ingobj["Ingress: web\nhost web.example.com -> svc web:80"]
+            svc["Service: web (ClusterIP)\nport 80 -> targetPort http(8000)"]
+            hpa["HPA: web\nCPU 70%, 2..6 replicas"]
+
+            subgraph deploy["Deployment: web (2 replicas)"]
+                p1["Pod web-a\nUID 10001, non-root\nRO rootfs + emptyDir /tmp\nliveness+readiness /healthz"]
+                p2["Pod web-b\nUID 10001, non-root\nRO rootfs + emptyDir /tmp\nliveness+readiness /healthz"]
+            end
+
+            cm["ConfigMap: web-config"]
+            sec["Secret: web-secret (FAKE)"]
+            np["NetworkPolicy:\ndefault-deny + allow-from-ingress + allow-dns"]
+        end
+    end
+
+    ing -->|"allowed by NetworkPolicy\nTCP 8000"| svc
+    ingobj -. configures .-> ing
+    svc -->|"ready endpoints only"| p1
+    svc --> p2
+    hpa -. scales .-> deploy
+    cm -. envFrom .-> deploy
+    sec -. envFrom .-> deploy
+    np -. guards .-> deploy
+
+    classDef hardened fill:#e6ffe6,stroke:#2a7;
+    class p1,p2 hardened;

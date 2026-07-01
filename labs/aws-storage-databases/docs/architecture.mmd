@@ -1,0 +1,20 @@
+graph TD
+  subgraph storage["Storage primitives (always created — ~$0)"]
+    S3DATA["aws_s3_bucket.data<br/>versioning + AES256 SSE<br/>public access blocked<br/>lifecycle: expire noncurrent<br/>least-priv bucket policy"]
+    S3LOGS["aws_s3_bucket.logs<br/>server access logs<br/>lifecycle: expire 90d"]
+    DDB["aws_dynamodb_table.app<br/>PAY_PER_REQUEST<br/>PITR + SSE"]
+    EBS["aws_ebs_volume.data<br/>gp3, 8 GiB, encrypted"]
+  end
+
+  subgraph compute["Compute (GATED: enable_compute=false by default)"]
+    ROLE["aws_iam_role.instance<br/>+ instance profile"]
+    EC2["aws_instance.app<br/>t3.micro, IMDSv2,<br/>encrypted root vol"]
+  end
+
+  S3DATA -- "access logs" --> S3LOGS
+  ROLE -- "least-priv read-only" --> S3DATA
+  ROLE -- "least-priv read-only" --> DDB
+  EC2 -- "uses" --> ROLE
+
+  classDef gated stroke-dasharray: 5 5;
+  class ROLE,EC2 gated;

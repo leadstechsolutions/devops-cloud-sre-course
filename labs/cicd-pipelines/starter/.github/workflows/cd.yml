@@ -1,0 +1,76 @@
+name: cd
+
+# Deploys only fire on semver tags: v1.2.3, v2.0.0-rc1, etc.
+on:
+  push:
+    tags:
+      - "v*"
+
+# Read-only by default. The deploy job opts into id-token for OIDC below.
+permissions:
+  contents: read
+
+# One deploy per tag at a time; do NOT cancel an in-flight production deploy.
+concurrency:
+  group: cd-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  AWS_REGION: us-east-1
+  ECR_REPOSITORY: cicd-pipelines-app
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    # The `production` environment gates the deploy. In the repo's Settings ->
+    # Environments -> production, configure "Required reviewers" so a human must
+    # approve before this job runs. The URL surfaces in the deployment timeline.
+    environment:
+      name: production
+      url: https://app.example.com/healthz
+    # TODO(student): grant ONLY the permissions this deploy job needs.
+    #   OIDC requires `id-token: write` so the runner can mint a token for AWS STS;
+    #   the checkout needs `contents: read`. Add nothing else (least privilege).
+    permissions: {}   # TODO(student): replace {} with id-token + contents grants
+    steps:
+      - uses: actions/checkout@v4
+
+      # TODO(student): Configure AWS credentials via OIDC (NO long-lived keys).
+      #   Use aws-actions/configure-aws-credentials@v4 with a `role-to-assume`
+      #   input pointing at secrets.AWS_DEPLOY_ROLE_ARN, a role-session-name, and
+      #   aws-region. Do NOT add aws-access-key-id / aws-secret-access-key.
+      #   The role's trust policy allows token.actions.githubusercontent.com.
+
+      - name: Log in to Amazon ECR
+        id: ecr-login
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build, tag, and push image to ECR
+        env:
+          REGISTRY: ${{ steps.ecr-login.outputs.registry }}
+          IMAGE_TAG: ${{ github.ref_name }}
+        run: |
+          IMAGE="${REGISTRY}/${ECR_REPOSITORY}:${IMAGE_TAG}"
+          docker build -t "$IMAGE" -f app/Dockerfile app
+          docker push "$IMAGE"
+          echo "Pushed $IMAGE"
+
+      # Deploy step. In a real setup this is `aws ecs update-service` or a Helm
+      # upgrade; kept as an explicit, auditable command for the lab.
+      - name: Deploy to production (ECS rolling update)
+        env:
+          IMAGE_TAG: ${{ github.ref_name }}
+        run: |
+          aws ecs update-service \
+            --cluster production \
+            --service cicd-pipelines-app \
+            --force-new-deployment \
+            --region "$AWS_REGION"
+          echo "Triggered ECS rolling deploy for ${ECR_REPOSITORY}:${IMAGE_TAG}"
+
+      - name: Wait for service to stabilize
+        run: |
+          aws ecs wait services-stable \
+            --cluster production \
+            --services cicd-pipelines-app \
+            --region "$AWS_REGION"

@@ -1,0 +1,64 @@
+# Production override. Apply on top of values.yaml:
+#   helm template ./chart/webapp -f ./chart/webapp/values-prod.yaml
+#   helm upgrade --install webapp ./chart/webapp -f ./chart/webapp/values-prod.yaml
+#
+# Only the keys that differ from the defaults are listed; everything else is
+# inherited from values.yaml.
+
+# Pin the tag explicitly in prod instead of falling back to appVersion.
+image:
+  tag: "1.27.0"
+  pullPolicy: IfNotPresent
+
+# The HPA owns the replica count in prod, so replicaCount is informational
+# (used only before the HPA takes over on first rollout).
+replicaCount: 3
+
+# Headroom over dev defaults; still bounded so a bug cannot exhaust the node.
+resources:
+  requests:
+    cpu: 100m
+    memory: 128Mi
+  limits:
+    cpu: 500m
+    memory: 256Mi
+
+# Expose the app through an Ingress with TLS in prod.
+ingress:
+  enabled: true
+  className: "nginx"
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+  hosts:
+    - host: webapp.prod.example.com
+      paths:
+        - path: /
+          pathType: Prefix
+  tls:
+    - secretName: webapp-prod-tls
+      hosts:
+        - webapp.prod.example.com
+
+# Scale on CPU in prod.
+autoscaling:
+  enabled: true
+  minReplicas: 3
+  maxReplicas: 20
+  targetCPUUtilizationPercentage: 70
+  targetMemoryUtilizationPercentage: 80
+
+# Spread replicas across nodes; tolerate nothing special by default.
+affinity:
+  podAntiAffinity:
+    preferredDuringSchedulingIgnoredDuringExecution:
+      - weight: 100
+        podAffinityTerm:
+          topologyKey: kubernetes.io/hostname
+          labelSelector:
+            matchLabels:
+              app.kubernetes.io/name: webapp
+
+config:
+  LOG_LEVEL: "warn"
+  GREETING: "hello from production"

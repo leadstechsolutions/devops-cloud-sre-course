@@ -1,0 +1,28 @@
+# Base kustomization: the full, environment-agnostic app. Overlays (e.g.
+# overlays/prod) reference this base and patch only what differs per environment.
+#
+# Render with:  kubectl kustomize solution/base
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+# Apply everything into the `web` namespace. Kustomize sets metadata.namespace
+# on namespaced objects and leaves the Namespace object itself alone.
+namespace: web
+
+# Labels stamped onto every generated object AND used in selectors. This keeps
+# Service/Deployment/NetworkPolicy selectors consistent across the whole set.
+labels:
+  - includeSelectors: false
+    pairs:
+      app.kubernetes.io/part-of: kubernetes-fundamentals
+      app.kubernetes.io/managed-by: kustomize
+
+resources:
+  - namespace.yaml
+  - configmap.yaml
+  - secret.yaml
+  - deployment.yaml
+  - service.yaml
+  - hpa.yaml
+  - ingress.yaml
+  - networkpolicy.yaml

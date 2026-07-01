@@ -1,0 +1,98 @@
+# Default values for example-service. Every value here is a sane, secure
+# production default — a new service is safe to ship without editing this file.
+
+replicaCount: 2
+
+image:
+  repository: ghcr.io/example/example-service
+  # Pin by digest in real deployments; tag is fine for the paved-road default.
+  tag: ""        # defaults to .Chart.AppVersion when empty
+  pullPolicy: IfNotPresent
+
+imagePullSecrets: []
+nameOverride: ""
+fullnameOverride: ""
+
+serviceAccount:
+  create: true
+  automount: false   # the app needs no API access; do not mount a token
+  annotations: {}
+  name: ""
+
+podAnnotations: {}
+podLabels: {}
+
+# Pod-level securityContext: run as a non-root user, drop the default group.
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 10001
+  runAsGroup: 10001
+  fsGroup: 10001
+  seccompProfile:
+    type: RuntimeDefault
+
+# Container-level securityContext: no privilege escalation, read-only root FS,
+# all Linux capabilities dropped. This is the hard requirement the paved road
+# enforces for every service.
+securityContext:
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: true
+  runAsNonRoot: true
+  runAsUser: 10001
+  capabilities:
+    drop:
+      - ALL
+
+service:
+  type: ClusterIP
+  port: 80
+
+containerPort: 8080
+
+# Probes hit the app's dedicated endpoints. Liveness restarts a wedged pod;
+# readiness gates traffic during startup and SIGTERM draining.
+livenessProbe:
+  httpGet:
+    path: /healthz
+    port: http
+  initialDelaySeconds: 3
+  periodSeconds: 10
+  timeoutSeconds: 2
+  failureThreshold: 3
+readinessProbe:
+  httpGet:
+    path: /readyz
+    port: http
+  initialDelaySeconds: 2
+  periodSeconds: 5
+  timeoutSeconds: 2
+  failureThreshold: 3
+
+# Resource requests/limits are mandatory on the paved road — without them the
+# scheduler and the autoscaler are blind and a noisy neighbour can starve the node.
+resources:
+  requests:
+    cpu: 50m
+    memory: 64Mi
+  limits:
+    cpu: 250m
+    memory: 128Mi
+
+autoscaling:
+  enabled: false
+  minReplicas: 2
+  maxReplicas: 5
+  targetCPUUtilizationPercentage: 80
+
+# Default-deny: a NetworkPolicy that allows ingress only on the app port and
+# permits DNS egress. Disabled by default because it needs a CNI that enforces
+# policies (Calico/Cilium); enable per-cluster.
+networkPolicy:
+  enabled: false
+
+env:
+  LOG_LEVEL: INFO
+
+nodeSelector: {}
+tolerations: []
+affinity: {}

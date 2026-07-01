@@ -1,0 +1,13 @@
+---
+# Defaults for the cloudwatch_agent role. Overridden by group_vars/all.yml.
+#
+# ansible-lint var-naming[no-role-prefix]: a role's own variables must be
+# prefixed with the role name. The fleet-wide group_vars/all.yml keeps the short
+# cloudwatch_* names as the public interface; each default resolves to that
+# shared value when set, else to the built-in below.
+cloudwatch_agent_region: "{{ cloudwatch_region | default('us-east-1') }}"
+cloudwatch_agent_namespace: "{{ cloudwatch_namespace | default('Lab/ConfigMgmt') }}"
+cloudwatch_agent_log_group: "{{ cloudwatch_log_group | default('/lab/host/syslog') }}"
+cloudwatch_agent_log_retention_days: "{{ cloudwatch_log_retention_days | default(14) }}"
+cloudwatch_agent_deb_url: "https://amazoncloudwatch-agent.s3.amazonaws.com/ubuntu/amd64/latest/amazon-cloudwatch-agent.deb"
+cloudwatch_agent_config_path: "/opt/aws/amazon-cloudwatch-agent/etc/amazon-cloudwatch-agent.json"

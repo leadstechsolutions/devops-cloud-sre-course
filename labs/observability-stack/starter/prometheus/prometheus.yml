@@ -1,0 +1,37 @@
+# Prometheus server config -- STARTER. Fill in the TODOs.
+#
+# Validate when done: promtool check config prometheus/prometheus.yml
+#
+# Prometheus already scrapes itself. Add a `sample-api` job that discovers the
+# app pods in the lab-obs namespace and relabels them into clean targets.
+#
+# Reference: solution/prometheus/prometheus.yml
+
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  external_labels:
+    cluster: kind-course
+    env: lab
+
+rule_files:
+  - rules/recording.rules.yml
+  - rules/alerting.rules.yml
+
+scrape_configs:
+  - job_name: prometheus
+    static_configs:
+      - targets: ["localhost:9090"]
+
+  - job_name: sample-api
+    # TODO: replace this placeholder with a kubernetes_sd_configs (role: pod,
+    # namespace lab-obs) block + relabel_configs that:
+    #   1. keep only pods annotated prometheus.io/scrape: "true";
+    #   2. rewrite __address__ to pod_ip:<prometheus.io/port> (default 8000);
+    #   3. set target_label job to "sample-api";
+    #   4. expose pod + node labels.
+    # See solution/prometheus/prometheus.yml for the exact relabel_configs.
+    # The placeholder static target below keeps this a VALID config until then
+    # (promtool check config passes), but it scrapes nothing real.
+    static_configs:
+      - targets: []

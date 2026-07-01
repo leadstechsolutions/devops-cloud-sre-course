@@ -1,0 +1,41 @@
+# A pod that EXCEEDS the LimitRange per-container max (cpu max is 500m; this asks
+# for 2 cores). Applying it into the quota'd namespace is REJECTED by the API
+# server before the pod is ever scheduled. The quota-limit drill captures the
+# error string. Hardened to satisfy `restricted` PSA so the ONLY reason it can be
+# rejected is the resource ceiling, not pod security.
+apiVersion: v1
+kind: Pod
+metadata:
+  name: over-quota
+  labels:
+    app.kubernetes.io/name: over-quota
+    app.kubernetes.io/part-of: k8s-production-ops
+spec:
+  securityContext:
+    runAsNonRoot: true
+    runAsUser: 10001
+    seccompProfile:
+      type: RuntimeDefault
+  containers:
+    - name: greedy
+      image: cpu-burner:1.0.0
+      imagePullPolicy: IfNotPresent
+      resources:
+        requests:
+          cpu: "2"
+          memory: 64Mi
+        limits:
+          cpu: "2"
+          memory: 64Mi
+      securityContext:
+        allowPrivilegeEscalation: false
+        readOnlyRootFilesystem: true
+        capabilities:
+          drop:
+            - ALL
+      volumeMounts:
+        - name: tmp
+          mountPath: /tmp
+  volumes:
+    - name: tmp
+      emptyDir: {}

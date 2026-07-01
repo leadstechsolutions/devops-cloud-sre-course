@@ -1,0 +1,7 @@
+# Runtime dependency for the *live* CLI paths only.
+# The pure-logic functions and the unit tests need NONE of these.
+boto3>=1.34,<2.0
+
+# Optional: nicer test UX. The lab's tests run under stdlib `unittest` with no
+# pip install at all, so pytest is genuinely optional.
+# pytest>=8.0

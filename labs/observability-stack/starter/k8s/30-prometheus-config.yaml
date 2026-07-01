@@ -1,0 +1,120 @@
+# GENERATED FILE -- do not edit by hand.
+# Source of truth: starter/prometheus/{prometheus.yml,rules/*.yml}
+# Regenerate with: python3 scripts/gen-configmap.py --variant starter
+#
+# This ConfigMap carries the Prometheus server config and both rule files. It is
+# mounted into the prometheus Deployment two ways (see 40-prometheus.yaml):
+#   * prometheus.yml via subPath at /etc/prometheus/prometheus.yml
+#   * the whole map as a dir at /etc/prometheus/rules (so each rule file appears
+#     at /etc/prometheus/rules/<name>.yml, matching the rewritten rule_files).
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: prometheus-config
+  namespace: lab-obs
+  labels:
+    app: prometheus
+    app.kubernetes.io/part-of: observability-stack
+data:
+  prometheus.yml: |
+    # Prometheus server config -- STARTER. Fill in the TODOs.
+    #
+    # Validate when done: promtool check config prometheus/prometheus.yml
+    #
+    # Prometheus already scrapes itself. Add a `sample-api` job that discovers the
+    # app pods in the lab-obs namespace and relabels them into clean targets.
+    #
+    # Reference: solution/prometheus/prometheus.yml
+
+    global:
+      scrape_interval: 15s
+      evaluation_interval: 15s
+      external_labels:
+        cluster: kind-course
+        env: lab
+
+    rule_files:
+      - /etc/prometheus/rules/recording.rules.yml
+      - /etc/prometheus/rules/alerting.rules.yml
+
+    scrape_configs:
+      - job_name: prometheus
+        static_configs:
+          - targets: ["localhost:9090"]
+
+      - job_name: sample-api
+        # TODO: replace this placeholder with a kubernetes_sd_configs (role: pod,
+        # namespace lab-obs) block + relabel_configs that:
+        #   1. keep only pods annotated prometheus.io/scrape: "true";
+        #   2. rewrite __address__ to pod_ip:<prometheus.io/port> (default 8000);
+        #   3. set target_label job to "sample-api";
+        #   4. expose pod + node labels.
+        # See solution/prometheus/prometheus.yml for the exact relabel_configs.
+        # The placeholder static target below keeps this a VALID config until then
+        # (promtool check config passes), but it scrapes nothing real.
+        static_configs:
+          - targets: []
+  recording.rules.yml: |
+    # RED recording rules for `sample-api` -- STARTER. Fill in the TODOs.
+    #
+    # Validate when done: promtool check rules prometheus/rules/recording.rules.yml
+    #
+    # You are given R (rate) and the 5m error ratio. Add the longer error-ratio
+    # windows the burn-rate alert needs, and the duration (p99/p50) rules.
+    #
+    # Reference: solution/prometheus/rules/recording.rules.yml
+
+    groups:
+      - name: sample-api-red-rate
+        interval: 15s
+        rules:
+          - record: job:http_requests:rate5m
+            expr: sum by (job) (rate(http_requests_total{job="sample-api"}[5m]))
+
+          - record: job:http_requests_errors:rate5m
+            expr: sum by (job) (rate(http_requests_total{job="sample-api", status=~"5.."}[5m]))
+
+      - name: sample-api-red-error-ratio
+        interval: 15s
+        rules:
+          - record: job:http_requests_error_ratio:rate5m
+            expr: |
+              sum by (job) (rate(http_requests_total{job="sample-api", status=~"5.."}[5m]))
+              /
+              sum by (job) (rate(http_requests_total{job="sample-api"}[5m]))
+
+          # TODO 1: add job:http_requests_error_ratio:rate30m  (30m window)
+          # TODO 2: add job:http_requests_error_ratio:rate1h   (1h  window)
+          # TODO 3: add job:http_requests_error_ratio:rate6h   (6h  window)
+          #         (the fast-burn alert reads rate1h + rate5m; slow-burn reads
+          #          rate6h + rate30m -- so all four windows are required.)
+
+      - name: sample-api-red-duration
+        interval: 15s
+        # TODO 4: add job:http_request_duration_seconds:p99 using histogram_quantile
+        #         over sum by (le, job) (rate(http_request_duration_seconds_bucket[5m])).
+        # TODO 5: add job:http_request_duration_seconds:p50 (the 0.50 quantile).
+        rules: []
+  alerting.rules.yml: |
+    # Burn-rate alerting rules for `sample-api` -- STARTER. Fill in the TODOs.
+    #
+    # Validate when done: promtool check rules prometheus/rules/alerting.rules.yml
+    # Prove it fires:     promtool test rules tests/burn_rate_test.yml
+    #
+    # SLO: 99.9% availability over 30 days => error budget = 0.001.
+    # Multi-window, multi-burn-rate (Google SRE Workbook):
+    #   page   -> 1h AND 5m windows, burn rate 14.4
+    #   ticket -> 6h AND 30m windows, burn rate 6
+    #
+    # Reference: solution/prometheus/rules/alerting.rules.yml
+
+    groups:
+      - name: sample-api-slo-burn-rate
+        # TODO 1: add alert SampleApiErrorBudgetBurnFast --
+        #   expr: rate1h > 14.4*0.001 AND rate5m > 14.4*0.001
+        #   for: 2m, labels {severity: page, burn_rate: "14.4", ...}
+        # TODO 2: add alert SampleApiErrorBudgetBurnSlow --
+        #   expr: rate6h > 6*0.001 AND rate30m > 6*0.001
+        #   for: 15m, labels {severity: ticket, burn_rate: "6", ...}
+        # Until you add them, `promtool test rules` will FAIL (no alert fires).
+        rules: []

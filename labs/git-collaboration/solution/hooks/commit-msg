@@ -1,0 +1,71 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# commit-msg
+# ---------------------------------------------------------------------------
+# Enforces the Conventional Commits spec on the SUBJECT line of every commit:
+#
+#   <type>[optional scope][!]: <description>
+#
+#   type   = build|chore|ci|docs|feat|fix|perf|refactor|revert|style|test
+#   scope  = optional, in parentheses, e.g. (payments)
+#   !      = optional, marks a breaking change
+#   desc   = non-empty, lower-case-ish summary, no trailing period
+#
+# Examples that PASS:
+#   feat: add retry to payment client
+#   fix(api): handle nil pointer on /healthz
+#   refactor(db)!: drop deprecated column
+#
+# Examples that FAIL:
+#   updated stuff
+#   FEAT: shout
+#   feat: add trailing period.
+#
+# Git passes the path to the commit message file as $1.
+# Merge / fixup / revert auto-messages are exempted.
+# ---------------------------------------------------------------------------
+
+msg_file="$1"
+
+# Subject = first non-comment, non-blank line of the message file.
+subject="$(grep -vE '^[[:space:]]*#' "$msg_file" | grep -vE '^[[:space:]]*$' | head -n1 || true)"
+
+# Exempt machine-generated messages we should not reject.
+case "$subject" in
+  "Merge "*|"Revert "*|"fixup! "*|"squash! "*)
+    exit 0 ;;
+esac
+
+# Conventional Commits subject regex (POSIX ERE).
+types='build|chore|ci|docs|feat|fix|perf|refactor|revert|style|test'
+pattern="^(${types})(\([a-z0-9._-]+\))?(!)?: .+[^.]$"
+
+if [[ -z "$subject" ]]; then
+  echo "commit-msg: empty commit message. Aborting." >&2
+  exit 1
+fi
+
+if [[ ${#subject} -gt 72 ]]; then
+  printf 'commit-msg: subject line is %s chars (> 72). Keep it short.\n' "${#subject}" >&2
+  exit 1
+fi
+
+if ! echo "$subject" | grep -Eq "$pattern"; then
+  cat >&2 <<EOF
+commit-msg: subject does not follow Conventional Commits.
+
+  Got:      $subject
+
+  Expected: <type>[(scope)][!]: <description>
+  Types:    build chore ci docs feat fix perf refactor revert style test
+  Examples: feat(api): add /healthz endpoint
+            fix: handle empty payload
+            refactor(db)!: drop legacy column
+
+Commit aborted. Fix the message and retry.
+EOF
+  exit 1
+fi
+
+exit 0

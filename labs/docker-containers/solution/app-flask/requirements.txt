@@ -1,0 +1,5 @@
+# Pinned so the image is reproducible and the SBOM/CVE scan is deterministic.
+# Flask pulls in Werkzeug, Jinja2, click, itsdangerous, MarkupSafe, blinker.
+# gunicorn is a production WSGI server — we do NOT ship Flask's dev server.
+Flask==3.1.0
+gunicorn==23.0.0

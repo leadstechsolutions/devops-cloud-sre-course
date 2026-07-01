@@ -1,0 +1,28 @@
+apiVersion: v2
+name: webapp
+description: A production-shaped Helm chart for a stateless HTTP web application.
+type: application
+
+# Chart version (SemVer 2). Bump on any change to the chart itself.
+version: 0.1.0
+
+# Version of the app that this chart deploys. Quoted because image tags
+# like "1.2" are otherwise parsed as floats by YAML.
+appVersion: "1.27.0"
+
+kubeVersion: ">=1.25.0-0"
+
+keywords:
+  - web
+  - http
+  - stateless
+
+maintainers:
+  - name: DevOps/SRE Curriculum
+    email: sre@example.com
+
+sources:
+  - https://example.com/webapp
+
+annotations:
+  category: ApplicationServer

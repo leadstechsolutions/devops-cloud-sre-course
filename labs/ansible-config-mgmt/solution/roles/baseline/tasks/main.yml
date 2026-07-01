@@ -1,0 +1,53 @@
+---
+# baseline: bring a fresh host to a known-good state.
+#   1. update the package cache and install common packages
+#   2. create a dedicated application group + user with an authorized key
+#   3. set the system timezone and ensure time sync is running
+# Idempotent: re-running changes nothing once the host is in the desired state.
+
+- name: Update apt cache (valid for 1h)
+  ansible.builtin.apt:
+    update_cache: true
+    cache_valid_time: 3600
+  when: ansible_facts['os_family'] == "Debian"
+
+- name: Install baseline packages
+  ansible.builtin.package:
+    name: "{{ baseline_packages }}"
+    state: present
+
+- name: Ensure application group exists
+  ansible.builtin.group:
+    name: "{{ baseline_app_group }}"
+    state: present
+
+- name: Ensure application user exists
+  ansible.builtin.user:
+    name: "{{ baseline_app_user }}"
+    group: "{{ baseline_app_group }}"
+    shell: "{{ baseline_app_user_shell }}"
+    create_home: true
+    state: present
+  register: baseline_app_user_result
+
+- name: Install authorized key for the application user
+  ansible.posix.authorized_key:
+    user: "{{ baseline_app_user }}"
+    key: "{{ baseline_app_user_authorized_key }}"
+    state: present
+    exclusive: false
+  when: baseline_app_user_authorized_key | length > 0
+
+- name: Set the system timezone
+  community.general.timezone:
+    name: "{{ baseline_system_timezone }}"
+  notify: Restart chrony
+
+- name: Ensure time sync service is enabled and running
+  ansible.builtin.service:
+    name: chrony
+    state: started
+    enabled: true
+  # chrony may be packaged as chronyd on some distros; ignore if absent so the
+  # role stays portable. The hardening/observability value does not depend on it.
+  failed_when: false

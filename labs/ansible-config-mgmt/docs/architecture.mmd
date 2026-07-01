@@ -1,0 +1,27 @@
+flowchart LR
+  subgraph control["Control node (your laptop / CI runner)"]
+    cfg["ansible.cfg"]
+    inv["inventory.ini\n[web] [db]"]
+    site["site.yml\n(roles in order)"]
+    gv["group_vars/all.yml"]
+    cfg --> site
+    inv --> site
+    gv --> site
+  end
+
+  subgraph roles["roles/ (applied in this order)"]
+    r1["baseline\napp user · packages · timezone"]
+    r2["hardening\nsshd lockdown · ufw 22/80/443"]
+    r3["cloudwatch_agent\nlogs + metrics to CloudWatch"]
+    r1 --> r2 --> r3
+  end
+
+  site -- "ssh + sudo" --> web1["web1 (10.0.1.11)"]
+  site -- "ssh + sudo" --> web2["web2 (10.0.1.12)"]
+  site -- "ssh + sudo" --> db1["db1 (10.0.2.21)"]
+
+  site --> roles
+
+  web1 -. "syslog + mem/disk metrics" .-> cw[("AWS CloudWatch")]
+  web2 -. "syslog + mem/disk metrics" .-> cw
+  db1  -. "syslog + mem/disk metrics" .-> cw

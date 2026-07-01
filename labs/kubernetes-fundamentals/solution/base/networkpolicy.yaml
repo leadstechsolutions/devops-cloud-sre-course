@@ -1,0 +1,75 @@
+# Zero-trust networking for the `web` namespace, expressed as three policies.
+# NetworkPolicies are additive (allow-only): a pod selected by ANY policy is
+# isolated for the selected direction, and only the union of allow rules lets
+# traffic through. Requires a CNI that enforces them (Calico, Cilium, etc.);
+# on a CNI without enforcement these objects apply but are silently no-ops.
+#
+# Policy 1: default-deny ALL ingress and egress for every pod in the namespace.
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: default-deny-all
+  labels:
+    app.kubernetes.io/name: web
+spec:
+  # Empty podSelector = every pod in the namespace.
+  podSelector: {}
+  policyTypes:
+    - Ingress
+    - Egress
+  # No ingress/egress rules listed => nothing is allowed. This is the baseline
+  # the next two policies poke specific holes in.
+---
+# Policy 2: allow ingress to the app pods ONLY from the ingress controller,
+# on the app's container port. This is what makes the Ingress front door work
+# while everything else stays denied.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-from-ingress
+  labels:
+    app.kubernetes.io/name: web
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: web
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        # Traffic originating from any pod in the ingress-nginx namespace.
+        # The namespace must carry this label (ingress-nginx sets
+        # kubernetes.io/metadata.name automatically on modern clusters).
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: ingress-nginx
+      ports:
+        - protocol: TCP
+          port: 8000
+---
+# Policy 3: allow egress to cluster DNS so the app can resolve names. Without
+# this, default-deny would also block DNS (UDP/TCP 53) and every outbound
+# lookup would hang. Add further egress allows (databases, upstreams) as needed.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-dns-egress
+  labels:
+    app.kubernetes.io/name: web
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: web
+  policyTypes:
+    - Egress
+  egress:
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53

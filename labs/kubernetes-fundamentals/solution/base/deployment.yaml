@@ -1,0 +1,114 @@
+# The workload: the stdlib HTTP service from the docker-containers module,
+# run as a Deployment so Kubernetes keeps the desired number of replicas
+# healthy and rolls out new versions without downtime.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: web
+  labels:
+    app.kubernetes.io/name: web
+    app.kubernetes.io/component: app
+spec:
+  replicas: 2
+  # The selector is immutable after creation and MUST match the pod template
+  # labels below — a mismatch makes the Deployment reject the template.
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: web
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      # Keep capacity during a rollout: never drop below desired, allow one
+      # extra pod while the new ReplicaSet scales up.
+      maxUnavailable: 0
+      maxSurge: 1
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: web
+        app.kubernetes.io/component: app
+    spec:
+      # Pod-level security context. runAsNonRoot makes the kubelet refuse to
+      # start the container if the image would run as UID 0. The fixed
+      # non-root UID/GID matches the appuser baked into the image (UID 10001).
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        runAsGroup: 10001
+        fsGroup: 10001
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: web
+          # Built by the docker-containers module. Pin a real tag in CI; we use
+          # a fixed version tag (never :latest) so rollouts are deterministic.
+          image: docker-containers-demo:1.0.0
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 8000
+              protocol: TCP
+          # Non-secret config from the ConfigMap and fake secrets from the
+          # Secret, surfaced as environment variables.
+          envFrom:
+            - configMapRef:
+                name: web-config
+            - secretRef:
+                name: web-secret
+          # Liveness: is the process wedged? If this fails repeatedly the
+          # kubelet restarts the container. Point at the cheap /healthz route.
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            timeoutSeconds: 2
+            failureThreshold: 3
+          # Readiness: should this pod receive traffic? While it fails, the pod
+          # is removed from the Service endpoints but NOT restarted.
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            initialDelaySeconds: 3
+            periodSeconds: 5
+            timeoutSeconds: 2
+            failureThreshold: 3
+          # Startup gives a slow-booting app room before liveness kicks in.
+          startupProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            periodSeconds: 5
+            failureThreshold: 12
+          # Requests = what the scheduler reserves; limits = the hard ceiling.
+          # CPU is compressible (throttled at the limit); memory is not — hit
+          # the memory limit and the container is OOMKilled (see broken/).
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 250m
+              memory: 128Mi
+          # Container-level hardening, required by the `restricted` PSA profile.
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            privileged: false
+            capabilities:
+              drop:
+                - ALL
+          # readOnlyRootFilesystem makes / read-only, so anything that needs to
+          # write at runtime must mount writable storage. /tmp is the usual one.
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        # emptyDir is an ephemeral, per-pod scratch volume — gone when the pod
+        # dies. A small memory-backed sizeLimit prevents a runaway /tmp from
+        # eating node disk.
+        - name: tmp
+          emptyDir:
+            sizeLimit: 16Mi

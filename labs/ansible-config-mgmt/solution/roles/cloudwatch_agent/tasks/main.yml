@@ -1,0 +1,83 @@
+---
+# cloudwatch_agent: install and configure the Amazon CloudWatch agent so each
+# host ships syslog to CloudWatch Logs and basic system metrics (mem/disk) to
+# CloudWatch Metrics.
+#
+# Auth note: on EC2 the agent uses the instance's IAM role
+# (CloudWatchAgentServerPolicy). Do NOT bake access keys into the config.
+# This role does not handle credentials by design — that is the instance role's
+# job. See README "Security considerations".
+
+- name: Download the CloudWatch agent package
+  ansible.builtin.get_url:
+    url: "{{ cloudwatch_agent_deb_url }}"
+    dest: /tmp/amazon-cloudwatch-agent.deb
+    mode: "0644"
+  register: cloudwatch_agent_download
+  # Network may be unavailable in some labs; surface a clear message instead of
+  # a stack trace, but still fail the task so the gate notices.
+  retries: 3
+  delay: 5
+  until: cloudwatch_agent_download is succeeded
+
+- name: Install the CloudWatch agent
+  ansible.builtin.apt:
+    deb: /tmp/amazon-cloudwatch-agent.deb
+    state: present
+
+- name: Render the CloudWatch agent configuration
+  ansible.builtin.copy:
+    dest: "{{ cloudwatch_agent_config_path }}"
+    mode: "0644"
+    owner: root
+    group: root
+    # The agent config is JSON. We build it from a dict and `to_nice_json` so it
+    # is always valid JSON and driven by group_vars.
+    content: |
+      {{
+        {
+          "agent": {
+            "metrics_collection_interval": 60,
+            "region": cloudwatch_agent_region,
+            "run_as_user": "cwagent"
+          },
+          "metrics": {
+            "namespace": cloudwatch_agent_namespace,
+            "append_dimensions": {"InstanceId": "${aws:InstanceId}"},
+            "metrics_collected": {
+              "mem": {"measurement": ["mem_used_percent"]},
+              "disk": {"measurement": ["used_percent"], "resources": ["/"]}
+            }
+          },
+          "logs": {
+            "logs_collected": {
+              "files": {
+                "collect_list": [
+                  {
+                    "file_path": "/var/log/syslog",
+                    "log_group_name": cloudwatch_agent_log_group,
+                    "log_stream_name": "{instance_id}",
+                    "retention_in_days": cloudwatch_agent_log_retention_days
+                  }
+                ]
+              }
+            }
+          }
+        } | to_nice_json
+      }}
+  notify: Restart cloudwatch agent
+
+- name: Enable and start the CloudWatch agent via its control script
+  ansible.builtin.command:
+    cmd: >-
+      /opt/aws/amazon-cloudwatch-agent/bin/amazon-cloudwatch-agent-ctl
+      -a fetch-config -m ec2 -s
+      -c file:{{ cloudwatch_agent_config_path }}
+  register: cloudwatch_agent_ctl
+  changed_when: "'Successfully' in cloudwatch_agent_ctl.stdout or cloudwatch_agent_ctl.rc == 0"
+
+- name: Ensure the CloudWatch agent service is enabled on boot
+  ansible.builtin.service:
+    name: amazon-cloudwatch-agent
+    state: started
+    enabled: true

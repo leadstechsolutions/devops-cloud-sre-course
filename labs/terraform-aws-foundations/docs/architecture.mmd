@@ -1,0 +1,39 @@
+graph TB
+    subgraph internet["Internet"]
+        IGW[Internet Gateway]
+    end
+
+    subgraph vpc["VPC 10.0.0.0/16"]
+        direction TB
+
+        subgraph azA["AZ a"]
+            PubA["Public subnet<br/>10.0.0.0/24<br/>map_public_ip=true"]
+            PrivA["Private subnet<br/>10.0.2.0/24"]
+        end
+
+        subgraph azB["AZ b"]
+            PubB["Public subnet<br/>10.0.1.0/24<br/>map_public_ip=true"]
+            PrivB["Private subnet<br/>10.0.3.0/24"]
+        end
+
+        PubRT["Public route table<br/>0.0.0.0/0 -> IGW"]
+        PrivRT["Private route table<br/>0.0.0.0/0 -> NAT (only if enabled)"]
+
+        NAT["NAT Gateway + EIP<br/>(optional, in Public AZ a)<br/>enable_nat_gateway=true"]
+
+        DefSG["Default SG (locked)<br/>no ingress / no egress"]
+    end
+
+    IGW --- PubRT
+    PubRT --- PubA
+    PubRT --- PubB
+
+    PrivRT --- PrivA
+    PrivRT --- PrivB
+
+    PubA -.hosts.-> NAT
+    NAT -.egress.-> IGW
+    PrivRT -.default route.-> NAT
+
+    classDef optional stroke-dasharray: 5 5;
+    class NAT optional;
