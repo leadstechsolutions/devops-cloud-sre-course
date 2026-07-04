@@ -1,0 +1,638 @@
+<title>Week 1 · Class 1 — DevOps, Cloud & SRE Roles</title>
+<style>
+  :root{
+    --ground:#0E1526; --ground-2:#0B1120;
+    --panel:#16203A; --panel-2:#1C284A; --line:#2B3A5E; --line-soft:#223052;
+    --ink:#EAEEF7; --ink-dim:#C2CBDE; --muted:#8B99B8;
+    --accent:#38C7E6;        /* signal cyan — the one brand accent */
+    --accent-deep:#1E9FC4;
+    --pass:#4CD08B;          /* semantic: healthy / throughput-good */
+    --warn:#F2B24B;          /* semantic: stability / attention */
+    --crit:#F0645A;          /* semantic: incident / fail */
+    --violet:#9B8CFF;        /* used only to tag the GitOps/pull pattern */
+    --sans:system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+    --mono:ui-monospace,"JetBrains Mono","SF Mono","Cascadia Code",Menlo,Consolas,monospace;
+    --r:14px;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%}
+  body{
+    background:var(--ground); color:var(--ink); font-family:var(--sans);
+    -webkit-font-smoothing:antialiased; text-rendering:optimizeLegibility;
+  }
+
+  /* ---------- deck shell ---------- */
+  .deck{
+    position:fixed; inset:0; overflow:hidden;
+    background:
+      radial-gradient(1100px 700px at 12% -10%, rgba(56,199,230,.10), transparent 60%),
+      radial-gradient(900px 600px at 110% 120%, rgba(155,140,255,.07), transparent 55%),
+      linear-gradient(180deg,var(--ground),var(--ground-2));
+  }
+  /* faint engineering grid */
+  .deck::before{
+    content:""; position:absolute; inset:0; pointer-events:none; opacity:.5;
+    background-image:
+      linear-gradient(rgba(139,153,184,.05) 1px,transparent 1px),
+      linear-gradient(90deg,rgba(139,153,184,.05) 1px,transparent 1px);
+    background-size:42px 42px; mask-image:radial-gradient(120% 100% at 50% 0%,#000 40%,transparent 100%);
+  }
+
+  /* ---------- status bar + progress ---------- */
+  .statusbar{
+    position:absolute; top:0; left:0; right:0; z-index:5;
+    display:flex; align-items:center; justify-content:space-between;
+    padding:14px clamp(20px,4vw,54px);
+    font-family:var(--mono); font-size:clamp(.62rem,1vw,.76rem);
+    letter-spacing:.16em; text-transform:uppercase; color:var(--muted);
+  }
+  .statusbar .tag{color:var(--accent)}
+  .statusbar .mid{color:var(--ink-dim)}
+  .statusbar b{color:var(--ink); font-weight:600}
+  .progress{position:absolute; top:0; left:0; height:3px; background:linear-gradient(90deg,var(--accent-deep),var(--accent)); width:0; z-index:6; transition:width .35s ease}
+
+  /* ---------- stage / slides ---------- */
+  .stage{position:absolute; inset:0; display:grid; place-items:center; padding:clamp(56px,8vh,84px) clamp(22px,5vw,72px) clamp(44px,7vh,70px)}
+  .slide{
+    position:absolute; width:min(1180px,100%); max-height:100%; overflow-y:auto; overflow-x:hidden;
+    opacity:0; visibility:hidden; transform:translateY(14px); pointer-events:none;
+    scrollbar-width:thin; scrollbar-color:var(--line) transparent;
+  }
+  .slide.active{opacity:1; visibility:visible; transform:none; pointer-events:auto}
+  @media (prefers-reduced-motion:no-preference){
+    .slide{transition:opacity .4s ease, transform .4s ease}
+  }
+  .slide::-webkit-scrollbar{width:8px}
+  .slide::-webkit-scrollbar-thumb{background:var(--line); border-radius:8px}
+
+  /* ---------- typography primitives ---------- */
+  .eyebrow{
+    font-family:var(--mono); font-size:clamp(.68rem,1.05vw,.86rem);
+    letter-spacing:.24em; text-transform:uppercase; color:var(--accent);
+    display:flex; align-items:center; gap:.7em; margin:0 0 clamp(14px,2.2vh,22px);
+  }
+  .eyebrow::before{content:""; width:26px; height:2px; background:var(--accent); display:inline-block}
+  h1,h2{margin:0; text-wrap:balance; line-height:1.04; letter-spacing:-.015em; font-weight:800}
+  h1{font-size:clamp(2.2rem,5.6vw,4.6rem)}
+  h2{font-size:clamp(1.7rem,3.9vw,3rem)}
+  .lead{font-size:clamp(1.02rem,1.7vw,1.32rem); color:var(--ink-dim); line-height:1.5; max-width:60ch; margin:clamp(14px,2.4vh,24px) 0 0}
+  p{margin:0}
+  .muted{color:var(--muted)}
+
+  /* ---------- layout helpers ---------- */
+  .cols{display:grid; gap:clamp(18px,2.4vw,34px); margin-top:clamp(20px,3vh,32px)}
+  .cols.two{grid-template-columns:1fr 1fr}
+  .cols.split{grid-template-columns:1.05fr .95fr}
+  @media (max-width:820px){.cols.two,.cols.split{grid-template-columns:1fr}}
+
+  ul.ticks{list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:.55em; font-size:clamp(.95rem,1.55vw,1.18rem); color:var(--ink-dim)}
+  ul.ticks li{display:flex; gap:.7em; align-items:baseline; line-height:1.35}
+  ul.ticks li::before{content:"▸"; color:var(--accent); font-size:.8em; transform:translateY(-1px)}
+  ul.ticks.q{counter-reset:q}
+  ul.ticks.q li::before{counter-increment:q; content:counter(q); font-family:var(--mono); color:var(--accent); font-size:.82em; font-weight:600}
+
+  /* cards */
+  .grid{display:grid; gap:clamp(12px,1.4vw,18px)}
+  .grid.g5{grid-template-columns:repeat(5,1fr)}
+  .grid.g4{grid-template-columns:repeat(4,1fr)}
+  .grid.g3{grid-template-columns:repeat(3,1fr)}
+  .grid.g2{grid-template-columns:repeat(2,1fr)}
+  @media (max-width:980px){.grid.g5,.grid.g4{grid-template-columns:repeat(2,1fr)} .grid.g3{grid-template-columns:1fr 1fr}}
+  @media (max-width:620px){.grid.g5,.grid.g4,.grid.g3,.grid.g2{grid-template-columns:1fr}}
+  .card{
+    background:linear-gradient(180deg,var(--panel),rgba(22,32,58,.55));
+    border:1px solid var(--line-soft); border-radius:var(--r);
+    padding:clamp(14px,1.5vw,20px); display:flex; flex-direction:column; gap:.5em;
+  }
+  .card .kick{font-family:var(--mono); font-size:.72rem; letter-spacing:.14em; color:var(--accent); text-transform:uppercase}
+  .card h3{margin:0; font-size:clamp(1.02rem,1.55vw,1.28rem); font-weight:700; letter-spacing:-.01em}
+  .card p{font-size:clamp(.86rem,1.25vw,1rem); color:var(--muted); line-height:1.4}
+  .card .snr{margin-top:auto; font-family:var(--mono); font-size:.76rem; color:var(--ink-dim); border-top:1px dashed var(--line); padding-top:.6em}
+  .card .snr b{color:var(--pass); font-weight:600}
+
+  /* callout */
+  .callout{
+    margin-top:clamp(16px,2.4vh,24px); border-left:3px solid var(--accent);
+    background:rgba(56,199,230,.07); border-radius:0 10px 10px 0;
+    padding:.85em 1.1em; font-size:clamp(.95rem,1.5vw,1.16rem); color:var(--ink);
+  }
+  .callout.warn{border-left-color:var(--warn); background:rgba(242,178,75,.08)}
+  .callout .lbl{font-family:var(--mono); font-size:.7rem; letter-spacing:.14em; text-transform:uppercase; color:var(--muted); display:block; margin-bottom:.25em}
+  .quote{font-weight:600}
+
+  /* tables */
+  .tblwrap{margin-top:clamp(16px,2.4vh,24px); overflow-x:auto; border:1px solid var(--line-soft); border-radius:var(--r)}
+  table{border-collapse:collapse; width:100%; font-size:clamp(.86rem,1.35vw,1.06rem)}
+  th,td{text-align:left; padding:.62em .9em; border-bottom:1px solid var(--line-soft); vertical-align:top}
+  thead th{font-family:var(--mono); font-size:.74rem; letter-spacing:.1em; text-transform:uppercase; color:var(--accent); background:rgba(56,199,230,.05)}
+  tbody tr:last-child td{border-bottom:0}
+  td.num{font-family:var(--mono); font-variant-numeric:tabular-nums; white-space:nowrap}
+  td b, th b{color:var(--ink)}
+
+  /* flow diagrams */
+  .flow{display:flex; flex-direction:column; align-items:stretch; gap:.35rem}
+  .flow.row{flex-direction:row; align-items:center; overflow-x:auto; padding-bottom:6px}
+  .node{
+    border:1px solid var(--line); background:var(--panel); border-radius:10px;
+    padding:.55em .8em; font-size:clamp(.82rem,1.25vw,1.02rem); color:var(--ink-dim); text-align:center; line-height:1.25;
+  }
+  .node.src{border-color:var(--accent); box-shadow:0 0 0 1px rgba(56,199,230,.25) inset; color:var(--ink)}
+  .node.hot{border-color:var(--warn); color:var(--ink)}
+  .node.mono{font-family:var(--mono); font-size:.82rem}
+  .flow.row .node{white-space:nowrap}
+  .arrow{color:var(--muted); text-align:center; font-size:1rem; line-height:1}
+  .flow.row .arrow{padding:0 .1rem}
+  .cap{margin-top:.8em; font-size:clamp(.82rem,1.2vw,.98rem); color:var(--muted)}
+  .cap b{color:var(--accent)}
+
+  /* pills */
+  .pill{font-family:var(--mono); font-size:.72rem; letter-spacing:.04em; padding:.2em .6em; border-radius:999px; display:inline-flex; align-items:center; gap:.4em; border:1px solid transparent; white-space:nowrap}
+  .pill.pass{color:var(--pass); border-color:rgba(76,208,139,.4); background:rgba(76,208,139,.1)}
+  .pill.pass::before{content:"●"; font-size:.6em; color:var(--pass)}
+  .pill.dir-up{color:var(--pass)} .pill.dir-dn{color:var(--warn)}
+  .metricval{font-family:var(--mono); font-variant-numeric:tabular-nums}
+
+  .phase-here{color:var(--accent); border-color:var(--accent)!important; box-shadow:0 0 0 1px rgba(56,199,230,.3) inset}
+  .objwrap{background:rgba(11,17,32,.4); border:1px solid var(--line-soft); border-radius:var(--r); padding:clamp(16px,2vw,24px)}
+  .objwrap h4, .agwrap h4{margin:0 0 .7em; font-family:var(--mono); font-size:.76rem; letter-spacing:.14em; text-transform:uppercase; color:var(--muted); font-weight:600}
+
+  .meta-row{display:flex; flex-wrap:wrap; gap:.6em 1.2em; margin-top:clamp(20px,3vh,30px); font-family:var(--mono); font-size:clamp(.72rem,1.1vw,.9rem); letter-spacing:.1em; color:var(--muted); text-transform:uppercase}
+  .meta-row span{display:flex; align-items:center; gap:.5em}
+  .meta-row span::before{content:"//"; color:var(--accent)}
+  .softnote{margin-top:clamp(16px,2.2vh,22px); font-size:clamp(.86rem,1.3vw,1.02rem); color:var(--muted); max-width:58ch}
+
+  /* ---------- nav controls ---------- */
+  .controls{position:absolute; bottom:16px; right:clamp(18px,4vw,44px); z-index:7; display:flex; gap:8px; align-items:center}
+  .btn{
+    font-family:var(--mono); font-size:.8rem; color:var(--ink-dim);
+    background:var(--panel); border:1px solid var(--line); border-radius:9px;
+    width:38px; height:34px; display:grid; place-items:center; cursor:pointer; transition:border-color .15s,color .15s;
+  }
+  .btn:hover{border-color:var(--accent); color:var(--accent)}
+  .btn:focus-visible{outline:2px solid var(--accent); outline-offset:2px}
+  .counter{font-family:var(--mono); font-size:.8rem; color:var(--muted); letter-spacing:.1em; font-variant-numeric:tabular-nums; padding:0 .3em}
+  .counter b{color:var(--ink)}
+  .hint{
+    position:absolute; bottom:18px; left:clamp(18px,4vw,44px); z-index:7;
+    font-family:var(--mono); font-size:.72rem; letter-spacing:.08em; color:var(--muted);
+    background:rgba(11,17,32,.6); border:1px solid var(--line-soft); border-radius:8px; padding:.4em .7em;
+    transition:opacity .6s ease;
+  }
+  kbd{font-family:var(--mono); background:var(--panel-2); border:1px solid var(--line); border-radius:5px; padding:.05em .4em; color:var(--ink-dim); font-size:.9em}
+</style>
+
+<div class="deck" id="deck">
+  <div class="progress" id="progress"></div>
+  <div class="statusbar">
+    <span class="tag">DEVOPS · CLOUD · SRE</span>
+    <span class="mid">WK<b>01</b> · CLASS<b>01</b> · ROLE FOUNDATIONS</span>
+    <span class="counter" id="counter"><b>01</b> / 16</span>
+  </div>
+
+  <div class="stage" id="stage">
+
+    <!-- 1 · TITLE -->
+    <section class="slide active">
+      <p class="eyebrow">Week 01 · Class 01 · Foundation Track</p>
+      <h1>Understanding DevOps,<br>Cloud Engineering &amp; SRE roles</h1>
+      <p class="lead">The professional landscape first: what each role owns, how work moves from code to production, and the toolchain you'll live in for the next 25 weeks.</p>
+      <div class="meta-row">
+        <span>3 hours</span><span>AWS-first</span><span>Azure / GCP aware</span><span>Beginner → Intermediate</span>
+      </div>
+      <p class="softnote">A soft start — orientation plus environment awareness. Real building begins in Week 2 (Linux). Today you leave able to explain each role and why every tool exists.</p>
+    </section>
+
+    <!-- 2 · THE ARC -->
+    <section class="slide">
+      <p class="eyebrow">Where this is going</p>
+      <h2>One track, 25 weeks, three job titles</h2>
+      <div class="flow row" style="margin-top:clamp(22px,3.4vh,36px)">
+        <div class="node src phase-here">W1–3<br><span class="muted" style="font-size:.8em">Foundations · you are here</span></div>
+        <div class="arrow">→</div>
+        <div class="node">W4–7<br><span class="muted" style="font-size:.8em">Cloud core</span></div>
+        <div class="arrow">→</div>
+        <div class="node">W8–10<br><span class="muted" style="font-size:.8em">Automation &amp; delivery</span></div>
+        <div class="arrow">→</div>
+        <div class="node">W11–13<br><span class="muted" style="font-size:.8em">Orchestration</span></div>
+        <div class="arrow">→</div>
+        <div class="node">W14–16<br><span class="muted" style="font-size:.8em">IaC &amp; observability</span></div>
+        <div class="arrow">→</div>
+        <div class="node">W17–22<br><span class="muted" style="font-size:.8em">Advanced &amp; SRE</span></div>
+        <div class="arrow">→</div>
+        <div class="node">W23–25<br><span class="muted" style="font-size:.8em">Capstone &amp; career</span></div>
+      </div>
+      <div class="callout"><span class="lbl">The course rule</span><span class="quote">A topic is "covered" only when you can execute it.</span> Every technology ships as real files you run and validate — not slides you read.</div>
+    </section>
+
+    <!-- 3 · TODAY -->
+    <section class="slide">
+      <p class="eyebrow">Today</p>
+      <h2>What we'll cover — and what you'll be able to do</h2>
+      <div class="cols two">
+        <div class="agwrap objwrap">
+          <h4>Agenda · 3 hours</h4>
+          <ul class="ticks">
+            <li>Why DevOps, Cloud &amp; SRE exist</li>
+            <li>DevOps Engineer &amp; Cloud Engineer</li>
+            <li class="muted" style="color:var(--warn)">— 10-minute break —</li>
+            <li>SRE, Platform &amp; Production Support</li>
+            <li>How the roles work together</li>
+            <li>What "senior" looks like · DORA · GitOps</li>
+            <li>Recap, knowledge check, lab &amp; homework</li>
+          </ul>
+        </div>
+        <div class="objwrap">
+          <h4>By the end you can…</h4>
+          <ul class="ticks q">
+            <li>Explain what DevOps means in a real enterprise</li>
+            <li>Tell the five roles apart</li>
+            <li>Describe how app, infra, security &amp; ops teams collaborate</li>
+            <li>Explain the basic delivery lifecycle</li>
+            <li>Say why automation, reliability &amp; collaboration are the course themes</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- 4 · WHY -->
+    <section class="slide">
+      <p class="eyebrow">The problem</p>
+      <h2>Why these roles exist</h2>
+      <div class="callout warn"><span class="lbl">Enterprise reality — the before picture</span>A company deploys its customer portal <b>by hand every Friday night</b>. One engineer copies files to a server, another restarts services, someone tails logs. When it breaks, nobody knows exactly what changed.</div>
+      <div class="tblwrap">
+        <table>
+          <thead><tr><th>The old pain</th><th>What fixes it</th></tr></thead>
+          <tbody>
+            <tr><td>Manual deployment</td><td><b>CI/CD pipeline</b></td></tr>
+            <tr><td>Inconsistent, hand-built servers</td><td><b>Infrastructure as Code</b></td></tr>
+            <tr><td>Poor visibility when things break</td><td><b>Monitoring &amp; logging</b></td></tr>
+            <tr><td>Slow, guess-driven troubleshooting</td><td><b>Runbooks &amp; dashboards</b></td></tr>
+            <tr><td>Fragile systems</td><td><b>Reliability engineering</b></td></tr>
+            <tr><td>Security bolted on too late</td><td><b>IAM, secrets, scanning, governance</b></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- 5 · FIVE ROLES -->
+    <section class="slide">
+      <p class="eyebrow">The landscape</p>
+      <h2>Five roles, one delivery system</h2>
+      <div class="grid g5" style="margin-top:clamp(20px,3vh,30px)">
+        <div class="card"><span class="kick">[ DEV ]</span><h3>DevOps Engineer</h3><p>Automates build, test, release and rollback. Owns the delivery pipeline.</p></div>
+        <div class="card"><span class="kick">[ CLD ]</span><h3>Cloud Engineer</h3><p>Designs and builds the secure, scalable infrastructure apps run on.</p></div>
+        <div class="card"><span class="kick">[ SRE ]</span><h3>Site Reliability Eng.</h3><p>Keeps production healthy, observable and recoverable.</p></div>
+        <div class="card"><span class="kick">[ PLT ]</span><h3>Platform Engineer</h3><p>Builds reusable golden paths so other teams move fast safely.</p></div>
+        <div class="card"><span class="kick">[ OPS ]</span><h3>Production Support</h3><p>Keeps live systems running; triages, follows runbooks, escalates.</p></div>
+      </div>
+      <div class="callout">These aren't isolated job titles — they're <b>connected disciplines</b> that together move software to production reliably.</div>
+    </section>
+
+    <!-- 6 · DEVOPS -->
+    <section class="slide">
+      <p class="eyebrow">The delivery role</p>
+      <h2>DevOps Engineer</h2>
+      <div class="cols split">
+        <div>
+          <ul class="ticks">
+            <li>CI/CD pipelines &amp; Git workflows</li>
+            <li>Build, test &amp; deployment automation</li>
+            <li>Container build and delivery</li>
+            <li>Infrastructure automation</li>
+            <li>Release, environment promotion &amp; rollback planning</li>
+          </ul>
+          <div class="callout"><span class="lbl">Clear the misconception</span>Not "the person who does everything." DevOps = <b>collaboration + automation + delivery reliability</b>.</div>
+        </div>
+        <div>
+          <div class="flow">
+            <div class="node src">Developer commits code</div>
+            <div class="arrow">↓</div>
+            <div class="node">CI pipeline runs tests</div>
+            <div class="arrow">↓</div>
+            <div class="node">App packaged · Docker image built</div>
+            <div class="arrow">↓</div>
+            <div class="node">Image pushed to registry</div>
+            <div class="arrow">↓</div>
+            <div class="node">Pipeline updates the environment</div>
+            <div class="arrow">↓</div>
+            <div class="node hot">Monitoring confirms health</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 7 · CLOUD -->
+    <section class="slide">
+      <p class="eyebrow">The foundation role</p>
+      <h2>Cloud Engineer</h2>
+      <div class="cols split">
+        <div>
+          <ul class="ticks">
+            <li>AWS accounts, IAM roles &amp; permissions</li>
+            <li>VPCs, subnets, routing &amp; DNS</li>
+            <li>Compute, containers, databases &amp; storage</li>
+            <li>Load balancers, security &amp; cost controls</li>
+            <li>Backup, DR, and Terraform infrastructure</li>
+          </ul>
+          <div class="callout"><span class="lbl">Clear the misconception</span>Not just clicking around the console. Enterprise cloud is <b>design, automation, governance, documentation &amp; cost awareness</b>.</div>
+        </div>
+        <div>
+          <div class="flow">
+            <div class="node src">Users</div>
+            <div class="arrow">↓</div>
+            <div class="node mono">Route 53 · DNS</div>
+            <div class="arrow">↓</div>
+            <div class="node mono">Load balancer</div>
+            <div class="arrow">↓</div>
+            <div class="node mono">App on EC2 or EKS</div>
+            <div class="arrow">↓</div>
+            <div class="node mono">Database / storage</div>
+            <div class="arrow">↓</div>
+            <div class="node hot mono">CloudWatch logs &amp; metrics</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 8 · SRE -->
+    <section class="slide">
+      <p class="eyebrow">The reliability role</p>
+      <h2>Site Reliability Engineer</h2>
+      <div class="cols split">
+        <div>
+          <ul class="ticks">
+            <li>Monitoring, alerting &amp; dashboards</li>
+            <li>Incident response &amp; on-call</li>
+            <li>SLIs, SLOs &amp; error budgets</li>
+            <li>Runbooks &amp; blameless postmortems</li>
+            <li>Automation to reduce toil; performance &amp; capacity</li>
+          </ul>
+          <div class="callout"><span class="quote">SRE starts where deployment ends.</span> Once something is live, we need to know whether it's healthy — and how to respond when it isn't.</div>
+        </div>
+        <div class="objwrap">
+          <h4>A service slows at peak — the SRE asks</h4>
+          <ul class="ticks">
+            <li>Down or just degraded? How many users?</li>
+            <li>Which metric changed — and did we deploy recently?</li>
+            <li>Errors in the logs? Is the database saturated?</li>
+            <li>Are we still meeting the SLO?</li>
+            <li>Fix now vs. improve later?</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- 9 · PLATFORM + SUPPORT -->
+    <section class="slide">
+      <p class="eyebrow">The adjacent roles</p>
+      <h2>Platform Engineering &amp; Production Support</h2>
+      <div class="cols two">
+        <div class="card">
+          <span class="kick">[ PLT ] Platform Engineering</span>
+          <p style="color:var(--ink-dim)">Reusable internal platforms and standards, so the right way is the easy way.</p>
+          <ul class="ticks" style="font-size:1rem">
+            <li>Standard CI/CD templates &amp; Terraform modules</li>
+            <li>Kubernetes deploy templates &amp; golden paths</li>
+            <li>Self-service portals &amp; secure baselines</li>
+          </ul>
+        </div>
+        <div class="card">
+          <span class="kick">[ OPS ] Production Support</span>
+          <p style="color:var(--ink-dim)">Keeps existing systems running and helps resolve live issues.</p>
+          <ul class="ticks" style="font-size:1rem">
+            <li>Ticket triage &amp; application support</li>
+            <li>Log review, restarts &amp; escalation</li>
+            <li>Known-issue docs &amp; user-impact comms</li>
+          </ul>
+        </div>
+      </div>
+      <div class="callout"><span class="quote">Platform Engineering makes the right way the easy way.</span> Many careers start in support or junior infra — valid stepping stones into all three tracks.</div>
+    </section>
+
+    <!-- 10 · TOGETHER -->
+    <section class="slide">
+      <p class="eyebrow">How it fits</p>
+      <h2>One launch, every role</h2>
+      <p class="lead" style="margin-top:0">Scenario: the company is launching a new customer portal — shipment status, invoices, delivery updates.</p>
+      <div class="cols split">
+        <div class="tblwrap" style="margin-top:clamp(14px,2vh,20px)">
+          <table>
+            <thead><tr><th>Team</th><th>Owns</th></tr></thead>
+            <tbody>
+              <tr><td><b>Application</b></td><td>Builds the portal features</td></tr>
+              <tr><td><b>DevOps</b></td><td>CI/CD pipeline &amp; release flow</td></tr>
+              <tr><td><b>Cloud Eng.</b></td><td>AWS infrastructure</td></tr>
+              <tr><td><b>Security</b></td><td>Access, secrets, encryption, compliance</td></tr>
+              <tr><td><b>SRE</b></td><td>Monitoring, alerts, SLOs, runbooks</td></tr>
+              <tr><td><b>Platform</b></td><td>Reusable templates &amp; standards</td></tr>
+              <tr><td><b>Prod Support</b></td><td>Triage after go-live</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div>
+          <div class="flow" style="font-size:.94em">
+            <div class="node src">Business request</div>
+            <div class="arrow">↓</div>
+            <div class="node">App design → cloud architecture</div>
+            <div class="arrow">↓</div>
+            <div class="node hot">Security review</div>
+            <div class="arrow">↓</div>
+            <div class="node">CI/CD setup → infra provisioning</div>
+            <div class="arrow">↓</div>
+            <div class="node">Application deployment</div>
+            <div class="arrow">↓</div>
+            <div class="node">Monitoring &amp; alerting</div>
+            <div class="arrow">↓</div>
+            <div class="node">Production support</div>
+            <div class="arrow">↓</div>
+            <div class="node src">Incident review &amp; improvement</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 11 · PUSH -->
+    <section class="slide">
+      <p class="eyebrow">Code → production · Pattern 1</p>
+      <h2>Push-based CI/CD</h2>
+      <div class="flow row" style="margin-top:clamp(20px,3vh,30px)">
+        <div class="node src">Developer<br>writes code</div>
+        <div class="arrow">→</div>
+        <div class="node mono">Git repo</div>
+        <div class="arrow">→</div>
+        <div class="node mono">CI pipeline</div>
+        <div class="arrow">→</div>
+        <div class="node mono">Build &amp; test</div>
+        <div class="arrow">→</div>
+        <div class="node mono">Image / artifact</div>
+        <div class="arrow">→</div>
+        <div class="node hot">CD <b>pushes</b> the change →</div>
+        <div class="arrow">→</div>
+        <div class="node mono">Cloud / K8s</div>
+        <div class="arrow">→</div>
+        <div class="node">Production</div>
+      </div>
+      <div class="node" style="margin-top:.9rem; border-style:dashed">↳ Monitoring · alerts · incidents · improvement</div>
+      <p class="cap"><b>The pipeline reaches into the environment.</b> This is what the course teaches first, from Week 9 onward.</p>
+    </section>
+
+    <!-- 12 · PULL -->
+    <section class="slide">
+      <p class="eyebrow">Code → production · Pattern 2</p>
+      <h2>Pull-based GitOps</h2>
+      <div class="cols split" style="align-items:center">
+        <div class="flow">
+          <div class="node src">Developer writes code <b>+ desired state</b> (manifests)</div>
+          <div class="arrow">↓</div>
+          <div class="node" style="border-color:var(--violet); color:var(--ink)">Git repo — <b style="color:var(--violet)">single source of truth</b></div>
+          <div class="arrow">↑ continuously reconciles</div>
+          <div class="node mono" style="border-color:var(--violet)">GitOps agent (Argo CD / Flux)<br>running <b>inside</b> the platform</div>
+          <div class="arrow">↓</div>
+          <div class="node">Cluster is kept matching Git</div>
+          <div class="arrow">↓</div>
+          <div class="node hot">Monitoring · alerts · improvement</div>
+        </div>
+        <div>
+          <div class="callout" style="border-left-color:var(--violet); background:rgba(155,140,255,.08)"><span class="quote">The environment reaches out and keeps itself in sync with Git.</span></div>
+          <p class="cap" style="margin-top:1.1em">Push vs. pull — both appear in real jobs. For now you only need the mental model: <b style="color:var(--violet)">declare desired state in Git, let automation make reality match it.</b> Revisited with Kubernetes &amp; platform engineering.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- 13 · SENIOR -->
+    <section class="slide">
+      <p class="eyebrow">The bar</p>
+      <h2>What "senior" actually means</h2>
+      <div class="tblwrap">
+        <table>
+          <thead><tr><th>Role</th><th>Junior signal</th><th>Senior signal — what hiring managers look for</th></tr></thead>
+          <tbody>
+            <tr><td><b>DevOps / Platform</b></td><td>Follows a template, fixes a build</td><td>Designs org-wide CI/CD &amp; golden paths; sets release policy; cuts lead time across teams</td></tr>
+            <tr><td><b>Cloud</b></td><td>Creates resources from a runbook</td><td>Owns multi-account architecture, landing zones, network/IAM &amp; cost guardrails; reviews others' IaC</td></tr>
+            <tr><td><b>SRE</b></td><td>Acks alerts, follows a runbook</td><td>Defines SLOs &amp; error budgets; leads incident command; drives postmortems; kills classes of toil</td></tr>
+            <tr><td><b>Prod Support</b></td><td>Triages &amp; escalates tickets</td><td>Builds the runbook/known-issue base; finds recurring root causes; feeds reliability work back</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="callout"><span class="quote">Junior engineers complete tickets. Senior engineers remove the reason the ticket existed.</span></div>
+    </section>
+
+    <!-- 14 · DORA -->
+    <section class="slide">
+      <p class="eyebrow">How the industry measures delivery</p>
+      <h2>The four DORA metrics</h2>
+      <div class="grid g4" style="margin-top:clamp(18px,2.6vh,26px)">
+        <div class="card"><span class="kick" style="color:var(--pass)">Throughput</span><h3>Deployment frequency</h3><p>How often we ship to production.</p><span class="snr">good = <b>higher</b> <span class="pill pass" style="float:right">▲ up</span></span></div>
+        <div class="card"><span class="kick" style="color:var(--pass)">Throughput</span><h3>Lead time for changes</h3><p>Commit → running in production.</p><span class="snr">good = <b style="color:var(--warn)">lower</b> <span class="pill" style="float:right;color:var(--warn)">▼ hrs not wks</span></span></div>
+        <div class="card"><span class="kick" style="color:var(--warn)">Stability</span><h3>Change failure rate</h3><p>% of deploys needing remediation.</p><span class="snr">good = <b style="color:var(--warn)">lower</b> <span class="pill" style="float:right;color:var(--warn)">▼ down</span></span></div>
+        <div class="card"><span class="kick" style="color:var(--warn)">Stability</span><h3>Mean time to recovery</h3><p>How fast we recover when it breaks.</p><span class="snr">good = <b style="color:var(--warn)">lower</b> <span class="pill" style="float:right;color:var(--warn)">▼ down</span></span></div>
+      </div>
+      <div class="callout"><span class="quote">Speed and stability are not opposites.</span> The best teams are fast <b>and</b> reliable — and DORA gives the numbers to prove it.</div>
+    </section>
+
+    <!-- 15 · TOOLCHAIN -->
+    <section class="slide">
+      <p class="eyebrow">Your toolchain</p>
+      <h2>The tools you'll live in</h2>
+      <div class="grid g4" style="margin-top:clamp(16px,2.4vh,24px)">
+        <div class="card"><h3>VS Code</h3><p>Where we write everything</p><span class="snr"><span class="pill pass">1.106.3</span></span></div>
+        <div class="card"><h3>Terminal</h3><p>Where we run commands</p><span class="snr muted" style="font-family:var(--mono);font-size:.72rem">the main interface</span></div>
+        <div class="card"><h3>Git</h3><p>How we track changes</p><span class="snr"><span class="pill pass">2.34.1</span></span></div>
+        <div class="card"><h3>AWS CLI</h3><p>How we automate cloud</p><span class="snr"><span class="pill pass">2.32.11</span></span></div>
+        <div class="card"><h3>AWS Console</h3><p>Where we inspect resources</p><span class="snr muted" style="font-family:var(--mono);font-size:.72rem">browser</span></div>
+        <div class="card"><h3>Docker</h3><p>How we package apps</p><span class="snr"><span class="pill pass">29.1.2</span></span></div>
+        <div class="card"><h3>Terraform</h3><p>How we define infrastructure</p><span class="snr"><span class="pill pass">1.14.1</span></span></div>
+        <div class="card"><h3>Monitoring</h3><p>How we read production health</p><span class="snr muted" style="font-family:var(--mono);font-size:.72rem">CloudWatch, later Prometheus</span></div>
+      </div>
+      <div class="callout"><span class="lbl">Instructor preflight — verified today</span>All five core tools resolve; <span class="pill pass">setup-check READY</span> Today we <b>recognize</b> them and validate versions. We create <b>no</b> cloud resources yet — SSO login &amp; identity arrive in Weeks 4 &amp; 6.</div>
+    </section>
+
+    <!-- 16 · RECAP + HW -->
+    <section class="slide">
+      <p class="eyebrow">Before you go</p>
+      <h2>Quick check &amp; what's next</h2>
+      <div class="cols two">
+        <div class="objwrap">
+          <h4>Knowledge check</h4>
+          <ul class="ticks q">
+            <li>Which role focuses most on CI/CD?</li>
+            <li>Which role focuses most on cloud infrastructure?</li>
+            <li>Which role focuses most on reliability &amp; incident response?</li>
+            <li>Why do all three need troubleshooting skills?</li>
+            <li>Why does Git matter for cloud infrastructure?</li>
+          </ul>
+        </div>
+        <div>
+          <div class="card">
+            <span class="kick">Homework · due Class 2</span>
+            <h3>Compare the three roles</h3>
+            <p style="color:var(--ink-dim)">A one-page reflection (500–800 words): what each role does, which appeals to you, the skills they share, and why troubleshooting matters.</p>
+            <span class="snr" style="font-family:var(--mono)">→ <b style="color:var(--accent)">week-01-role-reflection.md</b></span>
+          </div>
+          <div class="callout" style="margin-top:16px"><span class="lbl">Next — Class 2</span>Set up &amp; validate your environment: terminal, Git, AWS CLI, Docker, Terraform + AWS Console orientation. Bring your working tools (or a list of what failed).</div>
+        </div>
+      </div>
+    </section>
+
+  </div><!-- /stage -->
+
+  <div class="hint" id="hint"><kbd>←</kbd> <kbd>→</kbd> navigate · <kbd>F</kbd> fullscreen · <kbd>Home</kbd>/<kbd>End</kbd> jump</div>
+  <div class="controls">
+    <button class="btn" id="prev" aria-label="Previous slide">←</button>
+    <span class="counter" id="counter2"><b>01</b>/16</span>
+    <button class="btn" id="next" aria-label="Next slide">→</button>
+    <button class="btn" id="fs" aria-label="Toggle fullscreen">⛶</button>
+  </div>
+</div>
+
+<script>
+(function(){
+  var slides = Array.prototype.slice.call(document.querySelectorAll('.slide'));
+  var total = slides.length;
+  var i = 0;
+  var progress = document.getElementById('progress');
+  var counter = document.getElementById('counter');
+  var counter2 = document.getElementById('counter2');
+  var hint = document.getElementById('hint');
+  var pad = function(n){ return (n<10?'0':'')+n; };
+
+  function render(){
+    slides.forEach(function(s,idx){
+      var on = idx===i;
+      s.classList.toggle('active', on);
+      s.setAttribute('aria-hidden', on ? 'false':'true');
+      if(on) s.scrollTop = 0;
+    });
+    var frac = ((i+1)/total)*100;
+    progress.style.width = frac+'%';
+    counter.innerHTML = '<b>'+pad(i+1)+'</b> / '+total;
+    counter2.innerHTML = '<b>'+pad(i+1)+'</b>/'+total;
+  }
+  function go(n){ i = Math.max(0, Math.min(total-1, n)); render(); }
+  function next(){ go(i+1); } function prev(){ go(i-1); }
+
+  document.getElementById('next').addEventListener('click', next);
+  document.getElementById('prev').addEventListener('click', prev);
+  document.getElementById('fs').addEventListener('click', toggleFs);
+
+  function toggleFs(){
+    var d = document.getElementById('deck');
+    if(!document.fullscreenElement){ (d.requestFullscreen||d.webkitRequestFullscreen||function(){}).call(d); }
+    else { (document.exitFullscreen||document.webkitExitFullscreen||function(){}).call(document); }
+  }
+
+  document.addEventListener('keydown', function(e){
+    switch(e.key){
+      case 'ArrowRight': case 'PageDown': case ' ': case 'Spacebar': e.preventDefault(); next(); break;
+      case 'ArrowLeft': case 'PageUp': e.preventDefault(); prev(); break;
+      case 'Home': e.preventDefault(); go(0); break;
+      case 'End': e.preventDefault(); go(total-1); break;
+      case 'f': case 'F': toggleFs(); break;
+    }
+  });
+
+  // auto-fade the hint
+  setTimeout(function(){ if(hint){ hint.style.opacity = '0'; } }, 5200);
+  render();
+})();
+</script>
